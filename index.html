@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presupuesto Estudiantil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #f6f4ef;
+    --superficie: #ffffff;
+    --borde: #e7e2d8;
+    --texto: #1d2320;
+    --texto2: #6b716d;
+    --verde: #1f7a5a;
+    --verdeOscuro: #145a41;
+    --verdeSuave: #dff1e8;
+    --menta: #9fe0c1;
+    --naranja: #f08a4b;
+    --amarillo: #f5c451;
+    --violeta: #8b7cf6;
+    --azul: #4ea3e0;
+    --rojo: #e05a5a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    background: var(--fondo);
+    color: var(--texto);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, .cifra { font-family: "Sora", sans-serif; }
+
+  .fondoDeco {
+    position: fixed; inset: 0; z-index: -1; overflow: hidden;
+  }
+  .fondoDeco span {
+    position: absolute; border-radius: 50%; filter: blur(60px); opacity: .55;
+  }
+  .fondoDeco span:nth-child(1) { width: 420px; height: 420px; background: var(--menta); top: -120px; right: -80px; }
+  .fondoDeco span:nth-child(2) { width: 320px; height: 320px; background: #ffd8bf; bottom: -80px; left: -60px; }
+
+  .contenedor {
+    max-width: 1160px; margin: 0 auto; padding: 48px 24px;
+    display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center;
+    min-height: 100vh;
+  }
+
+  /* ---------- Lado izquierdo ---------- */
+  .etiquetaTop {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--superficie); border: 1px solid var(--borde);
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; color: var(--verde);
+  }
+  .etiquetaTop i { width: 8px; height: 8px; border-radius: 50%; background: var(--verde); display: block; }
+  .titular {
+    font-size: clamp(40px, 6vw, 64px); line-height: 1.02; letter-spacing: -2px;
+    margin: 24px 0 16px;
+  }
+  .titular em { font-style: normal; color: var(--verde); }
+  .bajada { font-size: 18px; line-height: 1.6; color: var(--texto2); max-width: 520px; }
+
+  .funciones {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 32px 0;
+  }
+  .funcion {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px;
+    padding: 16px; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .funcion .icono {
+    flex: none; width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 20px;
+  }
+  .funcion b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .funcion p { font-size: 13px; color: var(--texto2); line-height: 1.5; }
+
+  .ficha {
+    background: var(--texto); color: #fff; border-radius: 24px; padding: 24px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  .ficha small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: .55; margin-bottom: 4px; }
+  .ficha span { font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .ficha .ancho { grid-column: span 3; border-top: 1px solid rgba(255,255,255,.12); padding-top: 16px; }
+
+  /* ---------- Teléfono ---------- */
+  .ladoTelefono { display: flex; justify-content: center; }
+  .telefono {
+    width: 360px; height: 740px; background: #111; border-radius: 48px; padding: 12px;
+    box-shadow: 0 40px 80px -24px rgba(20, 60, 45, .35);
+    position: relative;
+  }
+  .pantalla {
+    width: 100%; height: 100%; border-radius: 38px; overflow: hidden;
+    background: var(--fondo); position: relative; display: flex; flex-direction: column;
+  }
+  .isla {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 28px; background: #111; border-radius: 20px; z-index: 5;
+  }
+  .barraEstado {
+    display: flex; justify-content: space-between; padding: 14px 28px 0;
+    font-size: 13px; font-weight: 700; height: 44px;
+  }
+  .contenido { flex: 1; overflow: hidden; padding: 8px 16px 96px; }
+
+  .saludo { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 16px; }
+  .saludo small { color: var(--texto2); font-size: 13px; }
+  .saludo h3 { font-size: 20px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--menta), var(--verde));
+    color: #fff; font-weight: 700; display: grid; place-items: center; font-family: "Sora";
+  }
+
+  .tarjetaSaldo {
+    background: linear-gradient(145deg, var(--verde), var(--verdeOscuro));
+    color: #fff; border-radius: 24px; padding: 24px 16px 16px; position: relative; overflow: hidden;
+  }
+  .tarjetaSaldo::after {
+    content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%;
+    border: 28px solid rgba(255,255,255,.07); right: -60px; top: -70px;
+  }
+  .tarjetaSaldo small { font-size: 12px; opacity: .8; }
+  .tarjetaSaldo .cifra { font-size: 34px; margin: 4px 0 16px; letter-spacing: -1px; }
+  .barra { height: 8px; background: rgba(255,255,255,.2); border-radius: 8px; overflow: hidden; }
+  .barra div { height: 100%; background: var(--menta); border-radius: 8px; }
+  .filaSaldo { display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px; opacity: .9; }
+
+  .resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
+  .mini {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px; padding: 16px;
+  }
+  .mini small { font-size: 11px; color: var(--texto2); display: flex; align-items: center; gap: 4px; }
+  .mini .cifra { font-size: 17px; margin-top: 4px; }
+  .mini.ingreso .cifra { color: var(--verde); }
+  .mini.gasto .cifra { color: var(--rojo); }
+
+  .seccion { display: flex; justify-content: space-between; align-items: baseline; margin: 24px 0 8px; }
+  .seccion h4 { font-family: "Sora"; font-size: 15px; }
+  .seccion a { font-size: 12px; color: var(--verde); font-weight: 600; text-decoration: none; }
+
+  .categorias {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px; padding: 16px;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .dona {
+    flex: none; width: 104px; height: 104px; border-radius: 50%; position: relative;
+  }
+  .dona::after {
+    content: ""; position: absolute; inset: 18px; background: var(--superficie); border-radius: 50%;
+  }
+  .dona span {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 1;
+    font-family: "Sora"; font-weight: 700; font-size: 13px; text-align: center; line-height: 1.2;
+  }
+  .dona span small { display: block; font-family: "Plus Jakarta Sans"; font-weight: 500; font-size: 10px; color: var(--texto2); }
+  .leyenda { flex: 1; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+  .leyenda div { display: flex; align-items: center; gap: 8px; }
+  .leyenda i { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+  .leyenda b { margin-left: auto; font-weight: 600; }
+
+  .movimientos { display: flex; flex-direction: column; gap: 8px; }
+  .movimiento {
+    background: var(--superficie); border: 1px solid var(--borde); border-radius: 16px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .movimiento .icono {
+    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; flex: none;
+  }
+  .movimiento b { font-size: 14px; display: block; }
+  .movimiento small { font-size: 11px; color: var(--texto2); }
+  .movimiento .monto { margin-left: auto; font-family: "Sora"; font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .monto.menos { color: var(--texto); }
+  .monto.mas { color: var(--verde); }
+
+  .navInferior {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+    background: var(--superficie); border-top: 1px solid var(--borde);
+    display: flex; justify-content: space-around; align-items: center; padding-bottom: 8px;
+  }
+  .navInferior div { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--texto2); font-weight: 600; }
+  .navInferior div.activo { color: var(--verde); }
+  .navInferior svg { width: 22px; height: 22px; }
+  .botonMas {
+    width: 56px; height: 56px; border-radius: 18px; background: var(--verde); color: #fff;
+    border: none; font-size: 28px; margin-top: -32px;
+    box-shadow: 0 8px 20px -6px rgba(31,122,90,.6);
+  }
+
+
+
+  @media (max-width: 920px) {
+    .contenedor { grid-template-columns: 1fr; padding: 32px 16px; gap: 40px; }
+    .funciones { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 400px) {
+    .telefono { width: 100%; height: 700px; border-radius: 40px; padding: 8px; }
+    .pantalla { border-radius: 32px; }
+    .ficha { grid-template-columns: 1fr 1fr; }
+    .ficha .ancho { grid-column: span 2; }
+  }
+</style>
+</head>
+<body>
+<div class="fondoDeco"><span></span><span></span></div>
+
+<main class="contenedor">
+  <section>
+    <div class="etiquetaTop"><i></i> IHC · Proyecto 2</div>
+    <h1 class="titular">Tu plata de la <em>U</em>,<br>bajo control.</h1>
+    <p class="bajada">Presupuesto Estudiantil ayuda a estudiantes universitarios a organizar sus ingresos, gastos y presupuesto del mes de manera sencilla, sin planillas ni complicaciones.</p>
+
+    <div class="funciones">
+      <div class="funcion">
+        <div class="icono" style="background:var(--verdeSuave)">💰</div>
+        <div><b>Ingresos</b><p>Mesada, beca o trabajo de medio tiempo en un solo lugar.</p></div>
+      </div>
+      <div class="funcion">
+        <div class="icono" style="background:#ffe7d8">🧾</div>
+        <div><b>Gastos</b><p>Registrá cada gasto con su categoría en segundos.</p></div>
+      </div>
+      <div class="funcion">
+        <div class="icono" style="background:#fff3cf">🎯</div>
+        <div><b>Presupuesto</b><p>Definí un límite mensual y mirá cuánto te queda.</p></div>
+      </div>
+      <div class="funcion">
+        <div class="icono" style="background:#ebe8ff">📊</div>
+        <div><b>Resumen</b><p>Descubrí en qué se te va la plata por categoría.</p></div>
+      </div>
+    </div>
+
+    <div class="ficha">
+      <div><small>Primera opción</small><span>Presupuesto Estudiantil</span></div>
+      <div><small>Segunda opción</small><span>UniSport</span></div>
+      <div><small>Modalidad</small><span>P1 sin IA · P2 con IA</span></div>
+      <div class="ancho"><small>Integrantes</small><span>Franco Moron Luis Enrique · Claure Cota Ariany</span></div>
+    </div>
+  </section>
+
+  <section class="ladoTelefono">
+    <div>
+      <div class="telefono">
+        <div class="pantalla">
+          <div class="isla"></div>
+          <div class="barraEstado"><span>9:41</span><span>●●● 🔋</span></div>
+
+          <div class="contenido">
+            <div class="saludo">
+              <div><small>Hola de nuevo 👋</small><h3>Ariany</h3></div>
+              <div class="avatar">A</div>
+            </div>
+
+            <div class="tarjetaSaldo">
+              <small>Te queda este mes · <span id="mesActual"></span></small>
+              <div class="cifra" id="restante">Bs 0.00</div>
+              <div class="barra"><div id="barraUso"></div></div>
+              <div class="filaSaldo"><span id="textoUsado"></span><span id="textoLimite"></span></div>
+            </div>
+
+            <div class="resumen">
+              <div class="mini ingreso"><small>↓ Ingresos</small><div class="cifra" id="totalIngresos">Bs 0.00</div></div>
+              <div class="mini gasto"><small>↑ Gastos</small><div class="cifra" id="totalGastos">Bs 0.00</div></div>
+            </div>
+
+            <div class="seccion"><h4>Gastos por categoría</h4></div>
+            <div class="categorias">
+              <div class="dona" id="dona"><span><div id="porcentajeDona">0%</div></span></div>
+              <div class="leyenda" id="leyenda"></div>
+            </div>
+
+            <div class="seccion"><h4>Movimientos</h4><a href="#">Ver todo</a></div>
+            <div class="movimientos" id="listaMovimientos"></div>
+          </div>
+
+          <nav class="navInferior">
+            <div class="activo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio
+            </div>
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reportes
+            </div>
+            <div class="botonMas" style="display:grid;place-items:center;color:#fff">+</div>
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 10h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H15"/></svg>Metas
+            </div>
+            <div>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Perfil
+            </div>
+          </nav>
+
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const limiteMensual = 1200;
+
+  const categorias = {
+    comida:     { nombre: 'Comida',     icono: '🍔', color: '#f08a4b', fondo: '#ffe7d8' },
+    transporte: { nombre: 'Transporte', icono: '🚌', color: '#4ea3e0', fondo: '#dcefff' },
+    estudio:    { nombre: 'Estudio',    icono: '📚', color: '#8b7cf6', fondo: '#ebe8ff' },
+    salidas:    { nombre: 'Salidas',    icono: '🎉', color: '#f5c451', fondo: '#fff3cf' },
+    ingreso:    { nombre: 'Ingreso',    icono: '💰', color: '#1f7a5a', fondo: '#dff1e8' }
+  };
+
+  let movimientos = [
+    { descripcion: 'Mesada de septiembre', monto: 900, tipo: 'ingreso', categoria: 'ingreso', fecha: '01/09/2026' },
+    { descripcion: 'Clases particulares', monto: 300, tipo: 'ingreso', categoria: 'ingreso', fecha: '10/09/2026' },
+    { descripcion: 'Almuerzo comedor', monto: 18.5, tipo: 'gasto', categoria: 'comida', fecha: '29/09/2026' },
+    { descripcion: 'Pasaje micro', monto: 4, tipo: 'gasto', categoria: 'transporte', fecha: '29/09/2026' },
+    { descripcion: 'Fotocopias Cálculo II', monto: 12, tipo: 'gasto', categoria: 'estudio', fecha: '28/09/2026' },
+    { descripcion: 'Cine con amigos', monto: 45, tipo: 'gasto', categoria: 'salidas', fecha: '27/09/2026' },
+    { descripcion: 'Supermercado', monto: 132.4, tipo: 'gasto', categoria: 'comida', fecha: '25/09/2026' },
+    { descripcion: 'Recarga tarjeta bus', monto: 50, tipo: 'gasto', categoria: 'transporte', fecha: '20/09/2026' },
+    { descripcion: 'Libro de Física', monto: 95, tipo: 'gasto', categoria: 'estudio', fecha: '15/09/2026' }
+  ];
+
+  function formatoBs(numero) {
+    return 'Bs ' + numero.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function dibujar() {
+    const gastos = movimientos.filter(m => m.tipo === 'gasto');
+    const totalGastos = gastos.reduce((suma, m) => suma + m.monto, 0);
+    const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((suma, m) => suma + m.monto, 0);
+    const restante = limiteMensual - totalGastos;
+    const uso = Math.min(totalGastos / limiteMensual * 100, 100);
+
+    document.getElementById('mesActual').textContent = 'septiembre';
+    document.getElementById('restante').textContent = formatoBs(restante);
+    document.getElementById('totalIngresos').textContent = formatoBs(totalIngresos);
+    document.getElementById('totalGastos').textContent = formatoBs(totalGastos);
+    document.getElementById('textoUsado').textContent = 'Usaste ' + Math.round(uso) + '%';
+    document.getElementById('textoLimite').textContent = 'Límite ' + formatoBs(limiteMensual);
+
+    const barra = document.getElementById('barraUso');
+    barra.style.width = uso + '%';
+    barra.style.background = uso > 85 ? '#ff9d8a' : uso > 60 ? '#f5c451' : '#9fe0c1';
+
+    const porCategoria = {};
+    gastos.forEach(m => { porCategoria[m.categoria] = (porCategoria[m.categoria] || 0) + m.monto; });
+
+    let acumulado = 0;
+    const tramos = [];
+    let leyendaHtml = '';
+    Object.keys(porCategoria).forEach(clave => {
+      const porcentaje = porCategoria[clave] / totalGastos * 100;
+      const color = categorias[clave].color;
+      tramos.push(color + ' ' + acumulado + '% ' + (acumulado + porcentaje) + '%');
+      acumulado += porcentaje;
+      leyendaHtml += '<div><i style="background:' + color + '"></i>' + categorias[clave].nombre +
+                     '<b>' + Math.round(porcentaje) + '%</b></div>';
+    });
+    document.getElementById('dona').style.background = tramos.length ? 'conic-gradient(' + tramos.join(', ') + ')' : 'var(--borde)';
+    document.getElementById('leyenda').innerHTML = leyendaHtml;
+    document.getElementById('porcentajeDona').innerHTML = formatoBs(totalGastos).replace('Bs ', 'Bs<br>') + '<small>gastado</small>';
+
+    const lista = document.getElementById('listaMovimientos');
+    lista.innerHTML = '';
+    movimientos.slice(0, 7).forEach(m => {
+      const categoria = categorias[m.categoria];
+      const fila = document.createElement('div');
+      fila.className = 'movimiento';
+      fila.innerHTML =
+        '<div class="icono" style="background:' + categoria.fondo + '">' + categoria.icono + '</div>' +
+        '<div><b></b><small>' + categoria.nombre + ' · ' + m.fecha + '</small></div>' +
+        '<div class="monto ' + (m.tipo === 'gasto' ? 'menos' : 'mas') + '">' +
+        (m.tipo === 'gasto' ? '− ' : '+ ') + formatoBs(m.monto) + '</div>';
+      fila.querySelector('b').textContent = m.descripcion;
+      lista.appendChild(fila);
+    });
+  }
+
+  dibujar();
+</script>
+</body>
+</html>
