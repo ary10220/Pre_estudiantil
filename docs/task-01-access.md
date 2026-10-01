@@ -11,7 +11,6 @@ Integrantes: Claure Cota Ariany · Franco Moron Luis Enrique
 - escribir y correr las pruebas de cada endpoint (caso feliz y cada error),
 - revisar que los espacios de las pantallas respeten la retícula de 8.
 
-Las decisiones de diseño, la base de datos y los mensajes los definimos nosotros; cada archivo lo revisamos y lo podemos explicar.
 
 ## Cómo funciona
 
@@ -40,11 +39,16 @@ App Flutter  ──HTTP/JSON──▶  Backend Node/Express  ──SQL──▶ 
 
 ## Archivos principales
 
-### Ariany: backend, base y pantallas de acceso
+### Luis: diseño de la base
 
 | Archivo | Qué hace |
 |---|---|
-| `database/esquema.sql` | Tablas `usuarios`, `sesiones`, `recuperaciones` (diseño de Luis) |
+| `database/esquema.sql` | Diseño de las tablas `usuarios`, `sesiones` y `recuperaciones` |
+
+### Ariany: backend, app y documentación
+
+| Archivo | Qué hace |
+|---|---|
 | `backend/src/servidor.js` | Arranca Express, monta `/auth` y `/sesion`, responde errores en JSON |
 | `backend/src/bd.js` | Pool de conexiones a PostgreSQL |
 | `backend/src/servicios/usuarios.js` | Crear, buscar y cambiar contraseña (bcrypt) |
@@ -53,23 +57,15 @@ App Flutter  ──HTTP/JSON──▶  Backend Node/Express  ──SQL──▶ 
 | `backend/src/middleware/requiereSesion.js` | Revisa el token antes de las rutas protegidas |
 | `backend/src/rutas/auth.js` | Registro, login, recuperar y cambiar contraseña |
 | `backend/src/rutas/sesion.js` | `/sesion/yo` y `/sesion/salir` |
+| `app/lib/main.dart` | Arranca la app: si hay sesión guardada abre Inicio, si no la Bienvenida |
+| `app/lib/rutas.dart` | Rutas `/`, `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/inicio` |
 | `app/lib/tema/` | Colores, tipografía, espaciado y `crearTema()` |
 | `app/lib/modelos/usuario.dart` | Modelo del usuario |
 | `app/lib/servicios/api.dart` | URL del backend y manejo de errores / sin conexión |
-| `app/lib/servicios/auth_servicio.dart` | Llamadas a los 4 endpoints de `/auth` |
+| `app/lib/servicios/auth_servicio.dart` | Llamadas a `/auth` y `/sesion` |
+| `app/lib/servicios/sesion.dart` | Guardar, leer y borrar la sesión en el celular (`shared_preferences`) |
 | `app/lib/servicios/validaciones.dart` | Mismas reglas que el backend |
-| `app/lib/widgets/campo_texto.dart` | Campo con etiqueta, error y ojo para contraseña |
-| `app/lib/widgets/boton_principal.dart` | Botón con estado cargando |
-| `app/lib/pantallas/publicas/` | Login, Registro, Recuperar y Nueva contraseña |
-
-### Luis: sesión, navegación y pantallas de inicio
-
-| Archivo | Qué hace |
-|---|---|
-| `database/esquema.sql` | Diseño de las tablas |
-| `app/lib/servicios/sesion.dart` | Guardar, leer y borrar la sesión (`shared_preferences`) |
-| `app/lib/rutas.dart` | Rutas `/`, `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/inicio` |
-| `app/lib/main.dart` | Arranca la app con `theme: crearTema()` |
-| `app/lib/pantallas/pantalla_bienvenida.dart` | Primera pantalla |
-| `app/lib/pantallas/pantalla_inicio.dart` | Pantalla después del login |
-| `README.md` y video | Instrucciones y demostración |
+| `app/lib/widgets/` | Campo de texto, botón principal y botón secundario |
+| `app/lib/pantallas/publicas/` | Bienvenida, Login, Registro, Recuperar y Nueva contraseña |
+| `app/lib/pantallas/privadas/pantalla_inicio.dart` | Inicio: saluda, confirma la sesión con `/sesion/yo` y permite cerrar sesión |
+| `README.md`, `backend/LEEME.md`, `docs/` | Instrucciones y documentación |

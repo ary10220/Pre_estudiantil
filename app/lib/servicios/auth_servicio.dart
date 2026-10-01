@@ -38,4 +38,13 @@ class AuthServicio {
       'nueva': nueva,
     });
   }
+
+  static Future<Usuario> usuarioActual(String token) async {
+    final datos = await Api.get('/sesion/yo', token: token);
+    return Usuario.desdeJson(datos['usuario']);
+  }
+
+  static Future<void> salir(String token) async {
+    await Api.post('/sesion/salir', {}, token: token);
+  }
 }

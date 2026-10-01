@@ -57,9 +57,10 @@ class _PantallaLoginState extends State<PantallaLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(margenLateral, espacio48, margenLateral, espacio24),
+          padding: const EdgeInsets.fromLTRB(margenLateral, espacio8, margenLateral, espacio24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
