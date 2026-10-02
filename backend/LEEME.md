@@ -5,7 +5,7 @@ API en Node + Express que conecta la app con PostgreSQL.
 ## Requisitos
 
 - Node 18 o más nuevo
-- PostgreSQL con la base creada y el esquema cargado (`database/esquema.sql`)
+- PostgreSQL con la base creada y las migraciones cargadas en orden (ver `database/LEEME.md`)
 
 ## Primera vez
 
@@ -13,7 +13,7 @@ Crear la base y cargar las tablas (pide la clave de `postgres`):
 
 ```
 createdb -U postgres presupuesto_estudiantil
-psql -U postgres -d presupuesto_estudiantil -f database/esquema.sql
+psql -U postgres -d presupuesto_estudiantil -f database/migraciones/001_acceso.sql
 ```
 
 Instalar y configurar el backend, desde la carpeta `backend/`:
@@ -48,5 +48,9 @@ Tiene que decir `Servidor escuchando en el puerto 3000`. `npm run dev` se reinic
 | POST | `/auth/cambiar-contrasena` | `{ correo, codigo, nueva }` | 200 `{ mensaje }` |
 | GET | `/sesion/yo` | header `Authorization: Bearer <token>` | 200 `{ usuario }` |
 | POST | `/sesion/salir` | header `Authorization: Bearer <token>` | 204 |
+| POST | `/movimientos` | header + `{ concepto, monto }` | 201 `{ movimiento }` |
+| GET | `/movimientos` | header `Authorization: Bearer <token>` | 200 `{ movimientos: [...] }` (el más nuevo arriba) |
+
+Cada usuario ve y guarda solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.
 
 Los errores siempre vienen como `{ "error": "mensaje para mostrar" }`.

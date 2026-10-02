@@ -19,7 +19,7 @@ Necesitás Node 18+, PostgreSQL y Flutter instalados, y un emulador Android.
 
 ```
 createdb -U postgres presupuesto_estudiantil
-psql -U postgres -d presupuesto_estudiantil -f database/esquema.sql
+psql -U postgres -d presupuesto_estudiantil -f database/migraciones/001_acceso.sql
 ```
 
 **2. Backend.** Desde `backend/`:
@@ -42,7 +42,7 @@ flutter pub get
 flutter run
 ```
 
-La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador. Para un celular real hay que cambiar `urlBase` en `app/lib/servicios/api.dart` por la IP de la PC.
+La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador. Para un celular real hay que cambiar `urlBase` en `app/lib/comun/servicios/api.dart` por la IP de la PC.
 
 ## Pantallas
 
@@ -54,8 +54,22 @@ La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador
 | `/recuperar` | Recuperar contraseña (muestra el código) |
 | `/nueva-contrasena` | Poner contraseña nueva con el código |
 | `/inicio` | Inicio (requiere sesión) |
+| `/movimientos` | Mis movimientos: lista de gastos (requiere sesión) |
+| `/movimientos/nuevo` | Nuevo gasto: concepto y monto (requiere sesión) |
 
 Si ya hay una sesión guardada, la app abre directo en Inicio.
+
+### Probar una ruta escribiéndola
+
+Con el emulador abierto, en una terminal (reemplazar `inicio` por cualquier ruta de la tabla):
+
+```
+adb shell am start -a android.intent.action.VIEW -d "presupuesto://app/inicio"
+```
+
+Sin sesión, `/inicio` redirige al login con "Tu sesión terminó, iniciá sesión de nuevo". Las rutas públicas se abren igual.
+
+La sesión (token) dura **7 días**: se guarda en la tabla `sesiones` con su `expira_en`, y el backend la rechaza cuando vence.
 
 ## Documentación
 

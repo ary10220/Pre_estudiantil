@@ -1,13 +1,13 @@
 # Sistema visual · Presupuesto Estudiantil
 
-Todo lo visual de la app sale de la carpeta `app/lib/tema/`. Las pantallas **no escriben colores, tamaños de letra ni espacios a mano**: los importan de ahí.
+Todo lo visual de la app sale de la carpeta `app/lib/comun/tema/`. Las pantallas **no escriben colores, tamaños de letra ni espacios a mano**: los importan de ahí.
 
 | Archivo | Qué tiene |
 |---|---|
-| `tema/colores.dart` | La paleta B Índigo |
-| `tema/tipografia.dart` | Los estilos de texto (clase `Tipografia`) |
-| `tema/espaciado.dart` | Los espacios, todos múltiplos de 8 |
-| `tema/tema.dart` | `crearTema()`: arma el `ThemeData` que usa `main.dart` |
+| `comun/tema/colores.dart` | La paleta B Índigo |
+| `comun/tema/tipografia.dart` | Los estilos de texto (clase `Tipografia`) |
+| `comun/tema/espaciado.dart` | Los espacios, todos múltiplos de 8 |
+| `comun/tema/tema.dart` | `crearTema()`: arma el `ThemeData` que usa `main.dart` |
 
 ## 1. Colores (Paleta B Índigo)
 
@@ -89,7 +89,7 @@ El **alto de línea** también cae en la retícula de 8: cada línea mide 16, 24
 
 ## 4. Componentes
 
-- **`CampoTexto`** (`widgets/campo_texto.dart`): etiqueta arriba, campo de 48 de alto con radio 12, borde `colorBorde` (2px `colorMarca` al escribir). Con error, el borde pasa a `colorError` y el mensaje aparece debajo. Las contraseñas tienen un ojo para mostrar u ocultar.
-- **`BotonPrincipal`** (`widgets/boton_principal.dart`): ancho completo, 48 de alto, radio 12. Mientras espera al servidor muestra un indicador + "Ingresando…" / "Guardando…" y no se puede tocar.
-- **`BotonSecundario`** (`widgets/boton_secundario.dart`): mismo tamaño que el principal, fondo blanco con borde `colorBorde` y texto `colorMarca`. Para la acción alternativa ("Ya tengo cuenta", "Cerrar sesión").
+- **`CampoTexto`** (`comun/widgets/campo_texto.dart`): etiqueta arriba, campo de 48 de alto con radio 12, borde `colorBorde` (2px `colorMarca` al escribir). Con error, el borde pasa a `colorError` y el mensaje aparece debajo. Las contraseñas tienen un ojo para mostrar u ocultar.
+- **`BotonPrincipal`** (`comun/widgets/boton_principal.dart`): ancho completo, 48 de alto, radio 12. Mientras espera al servidor muestra un indicador + "Ingresando…" / "Guardando…" y no se puede tocar.
+- **`BotonSecundario`** (`comun/widgets/boton_secundario.dart`): mismo tamaño que el principal, fondo blanco con borde `colorBorde` y texto `colorMarca`. Para la acción alternativa ("Ya tengo cuenta", "Cerrar sesión").
 - Los enlaces (`TextButton`) tienen 48 de alto mínimo para que sean fáciles de tocar con el dedo.

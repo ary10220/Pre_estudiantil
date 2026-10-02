@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'pantallas/privadas/pantalla_inicio.dart';
-import 'pantallas/publicas/pantalla_bienvenida.dart';
-import 'pantallas/publicas/pantalla_login.dart';
-import 'pantallas/publicas/pantalla_nueva_contrasena.dart';
-import 'pantallas/publicas/pantalla_recuperar.dart';
-import 'pantallas/publicas/pantalla_registro.dart';
+import 'flujos/acceso/pantallas/pantalla_inicio.dart';
+import 'flujos/acceso/pantallas/pantalla_bienvenida.dart';
+import 'flujos/acceso/pantallas/pantalla_login.dart';
+import 'flujos/acceso/pantallas/pantalla_nueva_contrasena.dart';
+import 'flujos/acceso/pantallas/pantalla_recuperar.dart';
+import 'flujos/acceso/pantallas/pantalla_registro.dart';
+import 'flujos/movimientos/pantallas/pantalla_movimientos.dart';
+import 'flujos/movimientos/pantallas/pantalla_nuevo_gasto.dart';
 
 final Map<String, WidgetBuilder> rutas = {
   '/': (_) => const PantallaBienvenida(),
@@ -12,5 +14,8 @@ final Map<String, WidgetBuilder> rutas = {
   '/registro': (_) => const PantallaRegistro(),
   '/recuperar': (_) => const PantallaRecuperar(),
   '/nueva-contrasena': (_) => const PantallaNuevaContrasena(),
+  // Privadas: cada pantalla revisa la sesión con comun/servicios/guardia.dart
   '/inicio': (_) => const PantallaInicio(),
+  '/movimientos': (_) => const PantallaMovimientos(),
+  '/movimientos/nuevo': (_) => const PantallaNuevoGasto(),
 };
