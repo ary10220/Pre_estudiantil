@@ -5,7 +5,8 @@
   "main": "src/servidor.js",
   "scripts": {
     "dev": "nodemon src/servidor.js",
-    "start": "node src/servidor.js"
+    "start": "node src/servidor.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

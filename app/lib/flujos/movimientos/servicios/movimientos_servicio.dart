@@ -1,3 +1,4 @@
+import '../../../comun/formato.dart';
 import '../../../comun/servicios/api.dart';
 import '../modelos/movimiento.dart';
 
@@ -8,10 +9,11 @@ class MovimientosServicio {
     return lista.map((fila) => Movimiento.desdeJson(fila)).toList();
   }
 
-  static Future<Movimiento> guardarGasto(String token, String concepto, double monto) async {
+  static Future<Movimiento> guardarGasto(String token, String concepto, double monto, DateTime fecha) async {
     final datos = await Api.post('/movimientos', {
       'concepto': concepto,
       'monto': monto,
+      'fecha': fechaParaApi(fecha),
     }, token: token);
     return Movimiento.desdeJson(datos['movimiento']);
   }

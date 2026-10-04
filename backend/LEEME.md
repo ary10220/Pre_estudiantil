@@ -48,9 +48,19 @@ Tiene que decir `Servidor escuchando en el puerto 3000`. `npm run dev` se reinic
 | POST | `/auth/cambiar-contrasena` | `{ correo, codigo, nueva }` | 200 `{ mensaje }` |
 | GET | `/sesion/yo` | header `Authorization: Bearer <token>` | 200 `{ usuario }` |
 | POST | `/sesion/salir` | header `Authorization: Bearer <token>` | 204 |
-| POST | `/movimientos` | header + `{ concepto, monto }` | 201 `{ movimiento }` |
+| POST | `/movimientos` | header + `{ concepto, monto, fecha }` (fecha `AAAA-MM-DD`) | 201 `{ movimiento }` |
 | GET | `/movimientos` | header `Authorization: Bearer <token>` | 200 `{ movimientos: [...] }` (el más nuevo arriba) |
+| PATCH | `/movimientos/:id/pagar` | header `Authorization: Bearer <token>` | 200 `{ movimiento }` · 400 id no válido · 404 no existe o es de otro · 409 ya pagado |
 
-Cada usuario ve y guarda solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.
+Cada movimiento trae `estado` (`pendiente` o `pagado`) y `pagado_en` (fecha y hora en ISO, o `null`).
+Cada usuario ve, guarda y paga solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.
 
 Los errores siempre vienen como `{ "error": "mensaje para mostrar" }`.
+
+## Pruebas
+
+```
+npm test
+```
+
+Usa el runner propio de Node (`node --test`), sin instalar nada. Corre los archivos `tests/**/*.test.js`.

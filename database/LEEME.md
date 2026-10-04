@@ -1,12 +1,14 @@
 # Base de datos · Presupuesto Estudiantil
 
-PostgreSQL. Cada flujo agrega sus tablas en una migración numerada dentro de `migraciones/`.
+PostgreSQL. La base se llama `presupuesto_estudiantil` (es la que dice `backend/.env`).
+Cada flujo agrega sus cambios en una migración numerada dentro de `migraciones/`.
 Se corren **en orden** y **una sola vez** cada una.
 
-| Orden | Archivo | Qué crea |
+| Orden | Archivo | Qué hace |
 |---|---|---|
-| 1 | `001_acceso.sql` | `usuarios`, `sesiones`, `recuperaciones` (Tarea 1) |
-| 2 | `002_movimientos.sql` | `movimientos` (Flujo 1 · Guardar movimiento) |
+| 1 | `001_acceso.sql` | Crea `usuarios`, `sesiones`, `recuperaciones` (Tarea 1) |
+| 2 | `002_movimientos.sql` | Crea `movimientos` (Flujo 1 · Guardar movimiento) |
+| 3 | `003_estado_movimiento.sql` | Agrega `estado` (`pendiente`/`pagado`) y `pagado_en` a `movimientos` (Tarea 2) |
 
 ## Base nueva
 
@@ -16,14 +18,24 @@ Desde la carpeta del proyecto:
 createdb -U postgres presupuesto_estudiantil
 psql -U postgres -d presupuesto_estudiantil -f database/migraciones/001_acceso.sql
 psql -U postgres -d presupuesto_estudiantil -f database/migraciones/002_movimientos.sql
+psql -U postgres -d presupuesto_estudiantil -f database/migraciones/003_estado_movimiento.sql
 ```
 
-## Base que ya tenía la Tarea 1
+## Base que ya tenía las anteriores
 
-Solo falta la migración nueva:
+Solo se corren las que falten, por ejemplo la 003:
 
 ```
-psql -U postgres -d presupuesto_estudiantil -f database/migraciones/002_movimientos.sql
+psql -U postgres -d presupuesto_estudiantil -f database/migraciones/003_estado_movimiento.sql
 ```
 
 Si `psql` no se reconoce en Windows, usar la ruta completa: `"C:\Program Files\PostgreSQL\16\bin\psql.exe"`.
+
+## Con pgAdmin
+
+1. En el panel izquierdo: Servers → PostgreSQL 16 → Databases → **presupuesto_estudiantil** (clic derecho → Query Tool).
+2. Abrir el archivo de la migración (ícono de carpeta) o pegar su contenido.
+3. Ejecutar con F5. Tiene que decir `ALTER TABLE` (o `CREATE TABLE`).
+4. Comprobar: `SELECT id, concepto, estado, pagado_en FROM movimientos;` → los que ya existían salen `pendiente`.
+
+Si la migración ya se corrió, PostgreSQL responde `column "estado" of relation "movimientos" already exists`: no hay que hacer nada.

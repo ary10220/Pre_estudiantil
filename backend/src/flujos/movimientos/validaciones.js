@@ -29,4 +29,13 @@ function validarMonto(monto) {
   return null;
 }
 
-module.exports = { validarConcepto, validarMonto };
+// El id llega en la URL como texto: tiene que ser un entero positivo que entre en un INTEGER
+function validarIdMovimiento(id) {
+  const texto = String(id);
+  if (!/^\d+$/.test(texto) || Number(texto) <= 0 || Number(texto) > 2147483647) {
+    return 'Movimiento no válido';
+  }
+  return null;
+}
+
+module.exports = { validarConcepto, validarMonto, validarIdMovimiento };

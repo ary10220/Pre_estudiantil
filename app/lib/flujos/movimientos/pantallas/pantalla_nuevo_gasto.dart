@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../comun/formato.dart';
 import '../../../comun/servicios/api.dart';
 import '../../../comun/servicios/guardia.dart';
 import '../../../comun/tema/espaciado.dart';
@@ -18,6 +19,8 @@ class PantallaNuevoGasto extends StatefulWidget {
 class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
   final controlConcepto = TextEditingController();
   final controlMonto = TextEditingController();
+  final controlFecha = TextEditingController();
+  DateTime fecha = DateTime.now();
   String? errorConcepto;
   String? errorMonto;
   bool guardando = false;
@@ -25,6 +28,7 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
   @override
   void initState() {
     super.initState();
+    controlFecha.text = fechaCorta(fecha);
     leerTokenOIrAlLogin(context);
   }
 
@@ -32,7 +36,23 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
   void dispose() {
     controlConcepto.dispose();
     controlMonto.dispose();
+    controlFecha.dispose();
     super.dispose();
+  }
+
+  // Arranca en hoy; el calendario no deja elegir días que todavía no pasaron
+  Future<void> elegirFecha() async {
+    final elegida = await showDatePicker(
+      context: context,
+      initialDate: fecha,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (elegida == null) return;
+    setState(() {
+      fecha = elegida;
+      controlFecha.text = fechaCorta(elegida);
+    });
   }
 
   Future<void> guardarGasto() async {
@@ -47,7 +67,12 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
 
     setState(() => guardando = true);
     try {
-      await MovimientosServicio.guardarGasto(token, controlConcepto.text.trim(), leerMonto(controlMonto.text));
+      await MovimientosServicio.guardarGasto(
+        token,
+        controlConcepto.text.trim(),
+        leerMonto(controlMonto.text),
+        fecha,
+      );
       if (!mounted) return;
       // Si se abrió directo por enlace no hay lista detrás, entonces se abre la lista
       if (Navigator.canPop(context)) {
@@ -83,7 +108,7 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
             children: [
               Text('Nuevo gasto', style: Tipografia.titulo),
               const SizedBox(height: espacio8),
-              Text('La fecha se pone sola con el día de hoy.', style: Tipografia.subtitulo),
+              Text('Anotá qué gastaste, cuánto y cuándo.', style: Tipografia.subtitulo),
               const SizedBox(height: espacio24),
               CampoTexto(
                 etiqueta: 'Concepto',
@@ -103,6 +128,13 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
                 pista: 'Ej.: 25',
                 tipoTeclado: const TextInputType.numberWithOptions(decimal: true),
                 accionTeclado: TextInputAction.done,
+              ),
+              const SizedBox(height: espacio16),
+              CampoTexto(
+                etiqueta: 'Fecha',
+                controlador: controlFecha,
+                alTocar: elegirFecha,
+                icono: Icons.calendar_today_outlined,
               ),
               const SizedBox(height: espacio32),
               BotonPrincipal(

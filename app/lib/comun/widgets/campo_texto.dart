@@ -15,6 +15,9 @@ class CampoTexto extends StatefulWidget {
   final TextInputAction accionTeclado;
   final int? largoMaximo;
   final ValueChanged<String>? alCambiar;
+  // Si se pasa, el campo no abre el teclado: hace esto al tocarlo (por ejemplo, abrir el calendario)
+  final VoidCallback? alTocar;
+  final IconData? icono;
 
   const CampoTexto({
     super.key,
@@ -28,6 +31,8 @@ class CampoTexto extends StatefulWidget {
     this.accionTeclado = TextInputAction.next,
     this.largoMaximo,
     this.alCambiar,
+    this.alTocar,
+    this.icono,
   });
 
   @override
@@ -62,6 +67,8 @@ class _CampoTextoState extends State<CampoTexto> {
             keyboardType: widget.tipoTeclado,
             textInputAction: widget.accionTeclado,
             onChanged: widget.alCambiar,
+            readOnly: widget.alTocar != null,
+            onTap: widget.alTocar,
             textAlignVertical: TextAlignVertical.center,
             style: Tipografia.cuerpo,
             cursorColor: colorMarca,
@@ -83,7 +90,9 @@ class _CampoTextoState extends State<CampoTexto> {
                       tooltip: ocultarTexto ? 'Mostrar contraseña' : 'Ocultar contraseña',
                       onPressed: () => setState(() => ocultarTexto = !ocultarTexto),
                     )
-                  : null,
+                  : widget.icono == null
+                      ? null
+                      : Icon(widget.icono, color: colorTextoSecundario),
             ),
           ),
         ),

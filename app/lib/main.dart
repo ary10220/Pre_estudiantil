@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'rutas.dart';
 import 'comun/servicios/sesion.dart';
 import 'comun/tema/tema.dart';
@@ -27,6 +28,14 @@ class MiApp extends StatelessWidget {
       title: 'Presupuesto Estudiantil',
       debugShowCheckedModeBanner: false,
       theme: crearTema(),
+      // Para que el calendario y los textos de Flutter salgan en español
+      locale: const Locale('es'),
+      supportedLocales: const [Locale('es')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       initialRoute: rutaInicial,
       routes: rutas,
       // Sin esto, al arrancar en /inicio Flutter deja la bienvenida debajo

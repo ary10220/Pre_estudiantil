@@ -1,38 +1,38 @@
-# Sistema visual · Presupuesto Estudiantil
+# Sistema visual · Presupuesto Estudiantil · v0.2
+
+> **v0.2 (04/10/2026):** se cambia la Paleta B Índigo (v0.1) por la **Paleta C Petróleo**, se agregan los tonos "suave" de ingreso, gasto, aviso y error, y el estilo `Tipografia.monto` (Manrope con números tabulares) para la lista de movimientos. Espaciado y tamaños no cambian.
 
 Todo lo visual de la app sale de la carpeta `app/lib/comun/tema/`. Las pantallas **no escriben colores, tamaños de letra ni espacios a mano**: los importan de ahí.
 
 | Archivo | Qué tiene |
 |---|---|
-| `comun/tema/colores.dart` | La paleta B Índigo |
+| `comun/tema/colores.dart` | La paleta C Petróleo |
 | `comun/tema/tipografia.dart` | Los estilos de texto (clase `Tipografia`) |
 | `comun/tema/espaciado.dart` | Los espacios, todos múltiplos de 8 |
 | `comun/tema/tema.dart` | `crearTema()`: arma el `ThemeData` que usa `main.dart` |
 
-## 1. Colores (Paleta B Índigo)
+## 1. Colores (Paleta C Petróleo)
 
 | Constante | Hexa | Para qué se usa |
 |---|---|---|
-| `colorMarca` | `#4338CA` | Botón principal, enlaces, borde del campo activo |
-| `colorMarcaPresionado` | `#3730A3` | Botón principal mientras se presiona |
-| `colorMarcaSuave` | `#ECEBFB` | Fondos de resaltado |
-| `colorTexto` | `#1B1B2E` | Títulos y texto principal |
-| `colorTextoSecundario` | `#5A5A70` | Subtítulos, ayudas, ícono del ojo |
-| `colorPlaceholder` | `#6E6E83` | Texto de ejemplo dentro de los campos |
-| `colorFondo` | `#F5F5F8` | Fondo de todas las pantallas |
-| `colorSuperficie` | `#FFFFFF` | Relleno de campos y diálogos |
-| `colorBorde` | `#E2E2EC` | Borde de los campos |
-| `colorDeshabilitado` | `#EDEDF3` | Botón mientras carga |
-| `colorIngreso` | `#15803D` | Montos de ingreso |
-| `colorGasto` | `#CC4133` | Montos de gasto |
-| `colorAviso` | `#A15C07` | Avisos (presupuesto por agotarse) |
-| `colorError` | `#B91C1C` | Texto y borde de error |
-
-`colorSuperficie` (blanco) se agregó a la paleta para el relleno de los campos.
+| `colorMarca` | `#0F5F6E` | Botón principal, botón +, enlaces, borde del campo activo |
+| `colorMarcaPresionado` | `#0B4852` | Botón principal mientras se presiona |
+| `colorMarcaSuave` | `#E0EEF0` | Fondos de resaltado (ícono de la bienvenida) |
+| `colorTexto` | `#1C2426` | Títulos y texto principal |
+| `colorTextoSecundario` | `#5A6668` | Subtítulos, ayudas, íconos dentro de los campos |
+| `colorPlaceholder` | `#6D7775` | Texto de ejemplo dentro de los campos |
+| `colorFondo` | `#F4F4F0` | Fondo de todas las pantallas |
+| `colorSuperficie` | `#FFFFFF` | Relleno de campos, tarjetas y diálogos |
+| `colorBorde` | `#E2E1DA` | Borde de campos y tarjetas |
+| `colorDeshabilitado` | `#ECECE7` | Botón mientras carga |
+| `colorIngreso` / `colorIngresoSuave` | `#1B7F46` / `#E2F3E8` | Montos de ingreso / su fondo |
+| `colorGasto` / `colorGastoSuave` | `#C9442F` / `#FBE9E5` | Montos de gasto ("− Bs 25.00") / su fondo |
+| `colorAviso` / `colorAvisoSuave` | `#A3620A` / `#FBF0DA` | Avisos (presupuesto por agotarse) / su fondo |
+| `colorError` / `colorErrorSuave` | `#B42318` / `#FCE8E6` | Texto y borde de error / su fondo |
 
 ## 2. Tipografía
 
-Manrope para títulos y Plus Jakarta Sans para todo lo demás (paquete `google_fonts`).
+Manrope para títulos y montos, Plus Jakarta Sans para todo lo demás (paquete `google_fonts`).
 El **alto de línea** también cae en la retícula de 8: cada línea mide 16, 24 o 32.
 
 | Estilo | Fuente | Tamaño | Peso | Alto de línea | Dónde |
@@ -44,6 +44,7 @@ El **alto de línea** también cae en la retícula de 8: cada línea mide 16, 24
 | `Tipografia.boton` | Plus Jakarta Sans | 16 | 600 | 24 | Texto del botón principal |
 | `Tipografia.ayuda` | Plus Jakarta Sans | 12 | 400 | 16 | Texto de ayuda debajo del campo |
 | `Tipografia.error` | Plus Jakarta Sans | 12 | 400 | 16 | Mensaje de error debajo del campo (rojo) |
+| `Tipografia.monto` | Manrope (números tabulares) | 16 | 700 | 24 | Montos de la lista: todos los dígitos miden lo mismo y quedan alineados |
 
 ## 3. Espaciado: todo múltiplo de 8
 

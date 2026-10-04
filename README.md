@@ -55,7 +55,7 @@ La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador
 | `/nueva-contrasena` | Poner contraseña nueva con el código |
 | `/inicio` | Inicio (requiere sesión) |
 | `/movimientos` | Mis movimientos: lista de gastos (requiere sesión) |
-| `/movimientos/nuevo` | Nuevo gasto: concepto y monto (requiere sesión) |
+| `/movimientos/nuevo` | Nuevo gasto: concepto, monto y fecha (requiere sesión) |
 
 Si ya hay una sesión guardada, la app abre directo en Inicio.
 

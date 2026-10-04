@@ -38,5 +38,12 @@ ThemeData crearTema() {
       backgroundColor: colorSuperficie,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(espacio16)),
     ),
+    datePickerTheme: DatePickerThemeData(
+      backgroundColor: colorSuperficie,
+      surfaceTintColor: colorSuperficie,
+      headerForegroundColor: colorTexto,
+      dividerColor: colorBorde,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(espacio16)),
+    ),
   );
 }
