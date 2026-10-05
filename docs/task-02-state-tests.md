@@ -129,7 +129,41 @@ npm test
 
 ## Pruebas de Flutter
 
-_Completa Luis._
+Archivo: `app/test/movimientos_estado_test.dart`. Usa `flutter_test`, sin instalar nada extra. Cubren el modelo, la fila con su chip y su boton, y el dialogo de confirmacion.
+
+| N. | Que prueba | Resultado |
+|---|---|---|
+| 1 | El modelo lee estado pendiente y pagado_en vacio | Pasa |
+| 2 | El modelo lee estado pagado y pagado_en con fecha (17:36 UTC) | Pasa |
+| 3 | Si el backend no manda estado, se toma como pendiente | Pasa |
+| 4 | Un pendiente muestra chip Pendiente y el boton Marcar como pagado | Pasa |
+| 5 | Un pagado muestra chip Pagado y ya no ofrece el boton | Pasa |
+| 6 | Al marcar como pagado, la fila cambia a Pagado y el boton desaparece | Pasa |
+| 7 | La confirmacion pide Confirmar o Cancelar y avisa que no se puede deshacer | Pasa |
+| 8 | Con Cancelar no se marca como pagado | Pasa |
+
+Las pruebas anteriores (validaciones de concepto y monto, y la de la pantalla de bienvenida) siguen en `app/test/`.
+
+## Como ejecutarlas
+
+```
+cd app
+flutter test
+```
+
+## Salida real de `flutter test`
+
+```
+00:00 +0: 1. el modelo lee estado pendiente y pagado_en vacio
+00:00 +1: 2. el modelo lee estado pagado y pagado_en con fecha
+00:00 +2: 3. si el backend no manda estado, se toma como pendiente
+00:00 +3: 4. un pendiente muestra chip Pendiente y el boton Marcar como pagado
+00:00 +4: 5. un pagado muestra chip Pagado y ya no ofrece el boton
+00:00 +5: 6. al marcar como pagado, la fila cambia a Pagado sin boton
+00:00 +6: 7. la confirmacion pide Confirmar o Cancelar y avisa que no se deshace
+00:00 +7: 8. con Cancelar no se marca como pagado
+00:02 +11: All tests passed!
+```
 
 ## Quién hizo qué
 
