@@ -7,6 +7,7 @@ import '../../../comun/tema/tipografia.dart';
 import '../../../comun/widgets/boton_principal.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/movimientos_servicio.dart';
+import '../widgets/confirmacion_pagar.dart';
 import '../widgets/fila_movimiento.dart';
 
 class PantallaMovimientos extends StatefulWidget {
@@ -61,6 +62,36 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     await cargarMovimientos();
   }
 
+  Future<void> marcarComoPagado(int id) async {
+    final token = await leerTokenOIrAlLogin(context);
+    if (token == null || !mounted) return;
+
+    if (!mounted) return;
+    final confirmado = await confirmarMarcarPagado(context);
+    if (!confirmado || !mounted) return;
+
+    try {
+      final actualizado = await MovimientosServicio.marcarPagado(token, id);
+      if (!mounted) return;
+      setState(() {
+        final idx = movimientos.indexWhere((m) => m.id == id);
+        if (idx >= 0) {
+          movimientos[idx] = actualizado;
+        } else {
+          movimientos = movimientos.map((m) => m.id == id ? actualizado : m).toList();
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Movimiento marcado como pagado')));
+    } on ErrorApi catch (e) {
+      if (!mounted) return;
+      if (e.codigo == 401) {
+        mandarAlLogin(context, e.mensaje);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+
   List<Widget> contenido() {
     if (error != null) {
       return [
@@ -82,7 +113,10 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     }
     return [
       for (final movimiento in movimientos) ...[
-        FilaMovimiento(movimiento: movimiento),
+        FilaMovimiento(
+          movimiento: movimiento,
+          alMarcarPagado: () => marcarComoPagado(movimiento.id),
+        ),
         const SizedBox(height: espacio8),
       ],
     ];

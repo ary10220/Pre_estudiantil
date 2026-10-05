@@ -28,6 +28,14 @@ class Api {
     return _enviar(() => http.get(Uri.parse('$urlBase$ruta'), headers: _cabeceras(token)));
   }
 
+  static Future<Map<String, dynamic>> patch(String ruta, {Map<String, dynamic>? cuerpo, String? token}) {
+    return _enviar(() => http.patch(
+          Uri.parse('$urlBase$ruta'),
+          headers: _cabeceras(token),
+          body: cuerpo == null ? null : jsonEncode(cuerpo),
+        ));
+  }
+
   static Map<String, String> _cabeceras(String? token) {
     final cabeceras = {'Content-Type': 'application/json'};
     if (token != null) {

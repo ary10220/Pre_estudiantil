@@ -17,4 +17,9 @@ class MovimientosServicio {
     }, token: token);
     return Movimiento.desdeJson(datos['movimiento']);
   }
+
+  static Future<Movimiento> marcarPagado(String token, int id) async {
+    final datos = await Api.patch('/movimientos/$id/pagar', token: token);
+    return Movimiento.desdeJson(datos['movimiento']);
+  }
 }
