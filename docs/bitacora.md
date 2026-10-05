@@ -95,7 +95,7 @@ Esta tarea está partida entre los dos. La regla vive en el backend; la pantalla
 - **Botón "Marcar como pagado"** en cada fila pendiente, con un diálogo de confirmación que avisa que la acción no se puede deshacer. El botón desaparece cuando el movimiento ya está pagado.
 - **Actualización en pantalla:** al confirmar, la fila pasa a Pagado sin volver a pedir toda la lista, y sale un snackbar "Movimiento marcado como pagado".
 - **Errores:** si el backend responde 401 se vuelve al login; cualquier otro error se muestra en un snackbar sin perder la lista.
-- **8 pruebas** en `app/test/movimientos_estado_test.dart` con `flutter_test`:
+- **10 pruebas** en `app/test/movimientos_estado_test.dart` con `flutter_test`:
 
 | N. | Qué prueba |
 |---|---|
@@ -107,6 +107,8 @@ Esta tarea está partida entre los dos. La regla vive en el backend; la pantalla
 | 6 | Al marcar como pagado, la fila cambia a Pagado y el botón desaparece |
 | 7 | La confirmación pide Confirmar o Cancelar y avisa que no se puede deshacer |
 | 8 | Con Cancelar no se marca como pagado |
+| 9 | Un gasto recien creado nace Pendiente y sin pagado_en |
+| 10 | Al marcar como pagado se conservan concepto, monto y fecha |
 
 - **README:** sección "Pruebas" con los dos comandos, y sección "Pendiente y pagado" que explica el flujo de un solo sentido.
 
@@ -118,7 +120,7 @@ Esta tarea está partida entre los dos. La regla vive en el backend; la pantalla
 
 ```
 cd backend && npm test        →  7 pasan, 0 fallan
-cd app && flutter test       →  11 pasan (8 de T2 + 3 anteriores), 0 fallan
+cd app && flutter test       →  13 pasan (10 de T2 + 3 anteriores), 0 fallan
 cd app && flutter analyze    →  No issues found
 ```
 

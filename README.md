@@ -118,7 +118,7 @@ cd app
 flutter test
 ```
 
-Son 8 pruebas de `test/movimientos_estado_test.dart` y 3 de `test/movimientos_validaciones_test.dart` y `test/widget_test.dart`.
+Son 10 pruebas de `test/movimientos_estado_test.dart` y 3 de `test/movimientos_validaciones_test.dart` y `test/widget_test.dart`.
 
 ## Documentación
 

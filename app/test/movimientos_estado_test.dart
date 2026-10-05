@@ -157,4 +157,65 @@ void main() {
 
     expect(resultado, isFalse);
   });
+
+  test('9. un gasto recién creado nace Pendiente y sin pagado_en', () {
+    // Así es exactamente la respuesta del backend al crear un movimiento
+    final m = Movimiento.desdeJson({
+      'id': 42,
+      'tipo': 'gasto',
+      'concepto': 'Café',
+      'monto': 15.5,
+      'fecha': '2026-10-05',
+      'estado': 'pendiente',
+      'pagado_en': null,
+    });
+
+    expect(m.estado, 'pendiente');
+    expect(m.esPendiente, isTrue);
+    expect(m.esPagado, isFalse);
+    expect(m.pagadoEn, isNull);
+  });
+
+  testWidgets('10. al marcar como pagado se conservan los demás datos', (tester) async {
+    var actual = Movimiento.desdeJson({
+      'id': 42,
+      'tipo': 'gasto',
+      'concepto': 'Café',
+      'monto': 15.5,
+      'fecha': '2026-10-05',
+      'estado': 'pendiente',
+      'pagado_en': null,
+    });
+
+    await tester.pumpWidget(envelopar(StatefulBuilder(builder: (context, setState) {
+      return FilaMovimiento(
+        movimiento: actual,
+        alMarcarPagado: () => setState(
+          () => actual = actual.copyWith(
+            estado: 'pagado',
+            pagadoEn: DateTime.utc(2026, 10, 5, 18, 16),
+          ),
+        ),
+      );
+    })));
+
+    expect(find.text('Café'), findsOneWidget);
+    expect(find.text('Bs 15.50'), findsOneWidget);
+    expect(find.text('5 oct 2026'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('boton_marcar_pagado')));
+    await tester.pumpAndSettle();
+
+    // Solo cambió el estado: el resto sigue igual
+    expect(find.text('Pagado'), findsOneWidget);
+    expect(find.text('Café'), findsOneWidget);
+    expect(find.text('Bs 15.50'), findsOneWidget);
+    expect(find.text('5 oct 2026'), findsOneWidget);
+
+    expect(actual.id, 42);
+    expect(actual.concepto, 'Café');
+    expect(actual.monto, 15.5);
+    expect(actual.fecha, DateTime(2026, 10, 5));
+    expect(actual.pagadoEn, DateTime.utc(2026, 10, 5, 18, 16));
+  });
 }

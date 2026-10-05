@@ -141,6 +141,8 @@ Archivo: `app/test/movimientos_estado_test.dart`. Usa `flutter_test`, sin instal
 | 6 | Al marcar como pagado, la fila cambia a Pagado y el boton desaparece | Pasa |
 | 7 | La confirmacion pide Confirmar o Cancelar y avisa que no se puede deshacer | Pasa |
 | 8 | Con Cancelar no se marca como pagado | Pasa |
+| 9 | Un gasto recien creado nace Pendiente y sin pagado_en | Pasa |
+| 10 | Al marcar como pagado se conservan concepto, monto y fecha | Pasa |
 
 Las pruebas anteriores (validaciones de concepto y monto, y la de la pantalla de bienvenida) siguen en `app/test/`.
 
@@ -162,7 +164,9 @@ flutter test
 00:00 +5: 6. al marcar como pagado, la fila cambia a Pagado sin boton
 00:00 +6: 7. la confirmacion pide Confirmar o Cancelar y avisa que no se deshace
 00:00 +7: 8. con Cancelar no se marca como pagado
-00:02 +11: All tests passed!
+00:00 +8: 9. un gasto recien creado nace Pendiente y sin pagado_en
+00:00 +9: 10. al marcar como pagado se conservan los demas datos
+00:01 +13: All tests passed!
 ```
 
 ## Quién hizo qué

@@ -43,7 +43,7 @@ npm test         # node --test, 7 pruebas
 # App (desde app/)
 flutter pub get
 flutter run
-flutter test     # 11 pruebas
+flutter test     # 13 pruebas
 flutter analyze  # debe decir "No issues found!"
 ```
 
@@ -112,7 +112,7 @@ En "Mis movimientos" lo que se ve es lo que está guardado. No confíes en un es
 
 ```bash
 cd backend && npm test        # 7 deben pasar
-cd app && flutter test       # 11 deben pasar
+cd app && flutter test       # 13 deben pasar
 cd app && flutter analyze    # "No issues found!"
 ```
 
@@ -186,7 +186,7 @@ Las rutas privadas revisan la sesión con `app/lib/comun/servicios/guardia.dart`
 | Archivo | Cuántas | Qué cubren |
 |---|---|---|
 | `backend/tests/movimientos/estado.test.js` | 7 | La regla del estado y `validarIdMovimiento` |
-| `app/test/movimientos_estado_test.dart` | 8 | Modelo, chip, botón y confirmación |
+| `app/test/movimientos_estado_test.dart` | 10 | Modelo, chip, botón, confirmación y datos conservados |
 | `app/test/movimientos_validaciones_test.dart` | 2 | Mensajes de concepto y monto |
 | `app/test/widget_test.dart` | 1 | Arranque sin sesión |
 
