@@ -9,6 +9,12 @@ import '../../../comun/widgets/campo_texto.dart';
 import '../servicios/movimientos_servicio.dart';
 import '../servicios/validaciones.dart';
 
+// Rango del calendario: se puede elegir cualquier fecha, sin restricci��n.
+// showDatePicker exige que firstDate <= initialDate <= lastDate, as�� que el
+// l��mite se pone con a��os amplios en vez de dejar el calendario abierto.
+final DateTime anioMinimo = DateTime(2000);
+final DateTime anioMaximo = DateTime(2100);
+
 class PantallaNuevoGasto extends StatefulWidget {
   const PantallaNuevoGasto({super.key});
 
@@ -45,8 +51,8 @@ class _PantallaNuevoGastoState extends State<PantallaNuevoGasto> {
     final elegida = await showDatePicker(
       context: context,
       initialDate: fecha,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      firstDate: anioMinimo,
+      lastDate: anioMaximo,
     );
     if (elegida == null) return;
     setState(() {
