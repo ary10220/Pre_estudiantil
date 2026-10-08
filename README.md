@@ -77,6 +77,7 @@ La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador
 | `/inicio` | Inicio (requiere sesión) |
 | `/movimientos` | Mis movimientos: lista de gastos con su estado (requiere sesión) |
 | `/movimientos/nuevo` | Nuevo gasto: concepto, monto y fecha (requiere sesión) |
+| — | Editar gasto: se abre desde el menú (⋮) de cada fila, no tiene ruta propia |
 
 Si ya hay una sesión guardada, la app abre directo en Inicio.
 
@@ -96,34 +97,44 @@ La sesión (token) dura **7 días**: se guarda en la tabla `sesiones` con su `ex
 
 Cada movimiento tiene un estado: `pendiente` (nace así) o `pagado`. En "Mis movimientos", cada fila muestra un chip con el estado y, si está pendiente, el botón **Marcar como pagado** con una confirmación. Al confirmar, la app llama a `PATCH /movimientos/:id/pagar`, el backend guarda `estado = 'pagado'` con su `pagado_en`, y la fila pasa a Pagado. Es de un solo sentido: no hay vuelta atrás.
 
+## Editar y eliminar
+
+Cada fila tiene un menú (**⋮**) con **Editar** y **Eliminar**:
+
+- **Editar** abre "Editar gasto" con los datos cargados. **Si el movimiento ya está pagado, el campo monto queda bloqueado** (la regla del proyecto: *un movimiento pagado no permite modificar su monto*); concepto y fecha sí se pueden cambiar. Al guardar, la app llama a `PUT /movimientos/:id` y recarga la lista. Si alguien manda un monto distinto desde afuera, el backend responde 409 con "No se puede modificar el monto porque el movimiento ya está pagado".
+- **Eliminar** pide confirmación y luego llama a `DELETE /movimientos/:id` (204); la fila desaparece de la lista. No tiene restricción de estado, pero solo borra movimientos propios.
+
+Todo queda guardado en PostgreSQL: los cambios se ven al cerrar y volver a abrir la app. Detalle completo con las respuestas reales del endpoint en [docs/task-03-editar-eliminar.md](docs/task-03-editar-eliminar.md).
+
 ## Pruebas
 
 ### Backend
 
-Las pruebas unitarias de la regla del estado (pendiente → pagado) no necesitan base de datos ni servidor:
+Las pruebas unitarias de la regla del estado (pendiente → pagado) y de la regla del monto (un pagado no permite cambiarlo) no necesitan base de datos ni servidor:
 
 ```
 cd backend
 npm test
 ```
 
-Usa el runner de Node (`node --test`), sin instalar nada. Son 7 pruebas de `tests/movimientos/estado.test.js`.
+Usa el runner de Node (`node --test`), sin instalar nada. Son 8 pruebas de `tests/movimientos/estado.test.js`.
 
 ### App Flutter
 
-Las pruebas del modelo, del chip Pendiente/Pagado, del botón "Marcar como pagado" y de su confirmación:
+Las pruebas del modelo, del chip Pendiente/Pagado, del botón "Marcar como pagado", de su confirmación, y de editar/eliminar:
 
 ```
 cd app
 flutter test
 ```
 
-Son 10 pruebas de `test/movimientos_estado_test.dart` y 3 de `test/movimientos_validaciones_test.dart` y `test/widget_test.dart`.
+Son 18 pruebas: 10 de `test/movimientos_estado_test.dart`, 5 de `test/movimientos_edicion_test.dart` (monto bloqueado si está pagado, menú Editar/Eliminar y confirmación de borrado), 2 de `test/movimientos_validaciones_test.dart` y 1 de `test/widget_test.dart`.
 
 ## Documentación
 
 - [Tarea 1 · Acceso](docs/task-01-access.md)
 - [Tarea 2 · Cambio de estado y pruebas](docs/task-02-state-tests.md)
+- [Tarea 3 · Editar y eliminar](docs/task-03-editar-eliminar.md)
 - [Sistema visual](docs/sistema-visual.md): colores, tipografía y espaciado en múltiplos de 8
 - [Backend](backend/LEEME.md): endpoints
 - [Base de datos](database/LEEME.md): migraciones

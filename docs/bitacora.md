@@ -114,13 +114,48 @@ Esta tarea está partida entre los dos. La regla vive en el backend; la pantalla
 
 ---
 
-## 5. Cómo se probó
+## 5. Tarea 3 · Completar el ciclo: editar y eliminar
+
+Ariany (backend, pruebas y documentación) y Luis (pantallas, servicios y pruebas de la app).
+
+### 5.1 Ariany — backend
+
+- **`PUT /movimientos/:id`** con `{ concepto, monto, fecha }`, mismo recorrido que pagar: validar id (400), buscar por id **y** `usuario_id` del token (404, también para movimientos de otro), y responder 200 con el movimiento actualizado.
+- **`DELETE /movimientos/:id`:** misma validación y 404; responde **204** sin cuerpo. Borrar el mismo dos veces da 404.
+- **La regla nueva vive en `estado.js`:** `editarMontoPermitido(movimiento)` devuelve `false` si `estado === 'pagado'`. El `PUT` lo usa con una comparación de montos: si el monto que llega es distinto al guardado y el movimiento está pagado → **409** "No se puede modificar el monto porque el movimiento ya está pagado". Concepto y fecha sí se pueden editar.
+- **Prueba 8** en `backend/tests/movimientos/estado.test.js`: pagado no permite cambiar el monto, pendiente sí.
+- Arreglos que aparecieron en el camino: `module.exports` de `servicio.js` y de `rutas.js` no incluían las funciones nuevas (y `module.exports` de `rutas.js` estaba a mitad de archivo), y dos archivos quedaron con UTF-8 doble codificado (`sesiÃ³n`) tras editarlos; se corrigió todo antes de probar.
+
+### 5.2 Luis — app
+
+- **`Api.put(ruta, cuerpo, {token})` y `Api.delete(ruta, {token})`** en `api.dart`, con `Uri.parse('$urlBase$ruta')`.
+- **`MovimientosServicio.editarMovimiento` y `eliminarMovimiento`**, con los mismos mensajes de error que el backend.
+- **Pantalla "Editar gasto"** (`pantalla_editar_gasto.dart`): precarga concepto, monto y fecha. Si el movimiento está pagado, el campo monto queda **solo lectura** y al tocarlo avisa "No se puede modificar el monto porque el movimiento ya está pagado".
+- **Menú (⋮) en cada fila** con **Editar** y **Eliminar** (en vez de dos botones, para no desbordar la fila) y **diálogo de confirmación** antes de borrar ("Cancelar" / "Eliminar").
+- Al editar, vuelve a la lista con snackbar "Gasto actualizado" y la recarga; al eliminar, quita la fila de la lista y muestra "Gasto eliminado".
+- **5 pruebas nuevas** en `app/test/movimientos_edicion_test.dart`.
+
+Decisiones que vale la pena recordar:
+
+| Decisión | Por qué |
+|---|---|
+| Bloquear solo el monto, no toda la edición | La consigna dice "un movimiento pagado no permite modificar su monto": concepto y fecha sí se pueden corregir. |
+| 409 solo si el monto cambió | Si el monto que llega es igual al guardado, no hay nada que proteger; así un "guardar" sin tocar el monto no falla. |
+| Eliminar sin restricción de estado | La restricción es sobre modificar el monto; borrar es otra decisión y la app lo confirma antes. |
+| Editar se abre con `MaterialPageRoute`, sin ruta nueva | No es una pantalla a la que se navegue de arriba; se llega desde la fila. |
+| Menú ⋮ en la fila | Dos botones de texto más los desbordaban en pantallas angostas. |
+
+Pruebas automáticas: **8** en el backend y **18** en la app. Respuestas reales del endpoint, documentadas en `docs/task-03-editar-eliminar.md`: 409 con monto distinto en un pagado, 200 con el mismo monto, 200 en un pendiente, 204 al borrar, 404 de otro usuario y de un id ya borrado, 400 con id `abc`, 401 sin token. Todo verificado además contra PostgreSQL: los cambios quedan guardados en la base.
+
+---
+
+## 6. Cómo se probó
 
 ### Pruebas automáticas
 
 ```
-cd backend && npm test        →  7 pasan, 0 fallan
-cd app && flutter test       →  13 pasan (10 de T2 + 3 anteriores), 0 fallan
+cd backend && npm test        →  8 pasan, 0 fallan
+cd app && flutter test       →  18 pasan (10 de T2 + 5 de T3 + 3 anteriores), 0 fallan
 cd app && flutter analyze    →  No issues found
 ```
 
@@ -143,11 +178,13 @@ Con backend arriba (`Servidor escuchando en el puerto 3000`) y el emulador Andro
 
 Documentadas en `docs/task-02-state-tests.md`: 200 al pagar, 409 al pagar dos veces, 404 si no existe o es de otro usuario, 400 si el id no es válido, 401 sin token.
 
+Para editar y eliminar (`docs/task-03-editar-eliminar.md`): 409 al cambiar el monto de un movimiento pagado, 200 al editarlo con el mismo monto o a un pendiente, 204 al borrar, 404 de otro usuario y de un id ya borrado, 400 con id `abc`, 401 sin token. Verificado además que el cambio queda en PostgreSQL: después del `PUT`, un `GET` devuelve el concepto nuevo, y después del `DELETE` la lista ya no lo incluye.
+
 `pagado_en` viene en ISO y en UTC: `17:36Z` son las 13:36 en Bolivia.
 
 ---
 
-## 6. Problemas que encontramos
+## 7. Problemas que encontramos
 
 | Problema | Qué pasaba | Cómo se resolvió |
 |---|---|---|
@@ -159,7 +196,7 @@ Documentadas en `docs/task-02-state-tests.md`: 200 al pagar, 409 al pagar dos ve
 
 ---
 
-## 7. Modalidad
+## 8. Modalidad
 
 **P2 con IA (Claude Code).** Lo usamos para:
 
@@ -172,7 +209,7 @@ Lo que NO hizo la IA: las decisiones de diseño (dónde vive la regla, por qué 
 
 ---
 
-## 8. Qué falta
+## 9. Qué falta
 
 - **Video de 2 minutos** (grabado por Luis).
 - **Bitácora final** con los aportes de cada integrante para la entrega.

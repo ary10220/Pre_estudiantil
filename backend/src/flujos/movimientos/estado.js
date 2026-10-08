@@ -1,4 +1,4 @@
-// Regla del cambio de estado, sin base de datos: así se puede probar sola
+﻿// Regla del cambio de estado, sin base de datos: así se puede probar sola
 const ESTADOS = { PENDIENTE: 'pendiente', PAGADO: 'pagado' };
 
 function errorConCodigo(mensaje, codigo) {
@@ -22,4 +22,10 @@ function marcarComoPagado(movimiento, ahora) {
   return { ...movimiento, estado: ESTADOS.PAGADO, pagado_en: ahora };
 }
 
-module.exports = { ESTADOS, puedeMarcarPagado, marcarComoPagado };
+// Tarea 3: restricción para Presupuesto Estudiantil
+// "Un movimiento pagado no permite modificar su monto."
+function editarMontoPermitido(movimiento) {
+  return movimiento.estado !== ESTADOS.PAGADO;
+}
+
+module.exports = { ESTADOS, puedeMarcarPagado, marcarComoPagado, editarMontoPermitido };

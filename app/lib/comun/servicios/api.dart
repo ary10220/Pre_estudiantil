@@ -65,4 +65,15 @@ class Api {
     }
     return datos;
   }
+  static Future<Map<String, dynamic>> put(String ruta, Map<String, dynamic> cuerpo, {String? token}) {
+    return _enviar(() => http.put(
+          Uri.parse('$urlBase$ruta'),
+          headers: _cabeceras(token),
+          body: jsonEncode(cuerpo),
+        ));
+  }
+
+  static Future<Map<String, dynamic>> delete(String ruta, {String? token}) {
+    return _enviar(() => http.delete(Uri.parse('$urlBase$ruta'), headers: _cabeceras(token)));
+  }
 }

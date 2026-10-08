@@ -22,4 +22,27 @@ class MovimientosServicio {
     final datos = await Api.patch('/movimientos/$id/pagar', token: token);
     return Movimiento.desdeJson(datos['movimiento']);
   }
+
+  static Future<Movimiento> editarMovimiento(
+      String token, int id, String concepto, double monto, DateTime fecha) async {
+    final datos = await Api.put('/movimientos/$id', {
+      'concepto': concepto,
+      'monto': monto,
+      'fecha': fechaParaApi(fecha),
+    }, token: token);
+    return Movimiento.desdeJson(datos['movimiento']);
+  }
+
+  static Future<void> eliminarMovimiento(String token, int id) async {
+    await Api.delete('/movimientos/$id', token: token);
+  }
 }
+
+
+
+
+
+
+
+
+

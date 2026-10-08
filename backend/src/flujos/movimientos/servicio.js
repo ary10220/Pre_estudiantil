@@ -1,4 +1,4 @@
-const pool = require('../../bd');
+﻿const pool = require('../../bd');
 
 // to_char deja la fecha como texto 2026-10-01, así no se corre por la zona horaria
 const columnas = "id, tipo, concepto, monto, to_char(fecha, 'YYYY-MM-DD') AS fecha, estado, pagado_en";
@@ -46,4 +46,25 @@ async function marcarPagado(id, usuarioId) {
   return resultado.rows[0] ? aMovimiento(resultado.rows[0]) : null;
 }
 
-module.exports = { crearGasto, listarDeUsuario, buscarDeUsuario, marcarPagado };
+module.exports = { crearGasto, listarDeUsuario, buscarDeUsuario, marcarPagado, actualizarMovimiento, eliminarMovimiento };
+
+// Actualiza concepto, monto y fecha; la regla de "no tocar el monto si está
+// pagado" la revisa la ruta antes de llegar acá
+async function actualizarMovimiento(id, usuarioId, concepto, monto, fecha) {
+  const resultado = await pool.query(
+    `UPDATE movimientos
+     SET concepto = $3, monto = $4, fecha = $5
+     WHERE id = $1 AND usuario_id = $2
+     RETURNING ` + columnas,
+    [id, usuarioId, concepto, monto, fecha]
+  );
+  return resultado.rows[0] ? aMovimiento(resultado.rows[0]) : null;
+}
+
+async function eliminarMovimiento(id, usuarioId) {
+  const resultado = await pool.query(
+    `DELETE FROM movimientos WHERE id = $1 AND usuario_id = $2 RETURNING id`,
+    [id, usuarioId]
+  );
+  return resultado.rowCount > 0;
+}

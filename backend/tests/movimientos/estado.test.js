@@ -1,6 +1,6 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { ESTADOS, puedeMarcarPagado, marcarComoPagado } = require('../../src/flujos/movimientos/estado');
+const { ESTADOS, puedeMarcarPagado, marcarComoPagado, editarMontoPermitido } = require('../../src/flujos/movimientos/estado');
 const { validarIdMovimiento } = require('../../src/flujos/movimientos/validaciones');
 
 function movimientoDePrueba(estado) {
@@ -51,4 +51,10 @@ test('7. validarIdMovimiento rechaza "abc", 0 y -3 y acepta 5', () => {
   assert.equal(validarIdMovimiento('0'), 'Movimiento no válido');
   assert.equal(validarIdMovimiento('-3'), 'Movimiento no válido');
   assert.equal(validarIdMovimiento('5'), null);
+});
+
+// Tarea 3: un movimiento pagado no permite modificar su monto
+test('8. editar monto NO está permitido si está pagado', () => {
+  assert.equal(editarMontoPermitido(movimientoDePrueba(ESTADOS.PENDIENTE)), true);
+  assert.equal(editarMontoPermitido(movimientoDePrueba(ESTADOS.PAGADO)), false);
 });

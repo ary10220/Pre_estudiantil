@@ -7,8 +7,10 @@ import '../../../comun/tema/tipografia.dart';
 import '../../../comun/widgets/boton_principal.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/movimientos_servicio.dart';
+import '../widgets/confirmacion_eliminar.dart';
 import '../widgets/confirmacion_pagar.dart';
 import '../widgets/fila_movimiento.dart';
+import 'pantalla_editar_gasto.dart';
 
 class PantallaMovimientos extends StatefulWidget {
   const PantallaMovimientos({super.key});
@@ -92,6 +94,38 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     }
   }
 
+  Future<void> editarGasto(Movimiento movimiento) async {
+    final editado = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => PantallaEditarGasto(movimiento: movimiento)),
+    );
+    if (editado != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gasto actualizado')));
+    await cargarMovimientos();
+  }
+
+  Future<void> eliminarGasto(Movimiento movimiento) async {
+    final confirmado = await confirmarEliminarMovimiento(context);
+    if (!confirmado || !mounted) return;
+
+    final token = await leerTokenOIrAlLogin(context);
+    if (token == null || !mounted) return;
+
+    try {
+      await MovimientosServicio.eliminarMovimiento(token, movimiento.id);
+      if (!mounted) return;
+      setState(() => movimientos.removeWhere((m) => m.id == movimiento.id));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Movimiento eliminado')));
+    } on ErrorApi catch (e) {
+      if (!mounted) return;
+      if (e.codigo == 401) {
+        mandarAlLogin(context, e.mensaje);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+
   List<Widget> contenido() {
     if (error != null) {
       return [
@@ -116,6 +150,8 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         FilaMovimiento(
           movimiento: movimiento,
           alMarcarPagado: () => marcarComoPagado(movimiento.id),
+          alEditar: () => editarGasto(movimiento),
+          alEliminar: () => eliminarGasto(movimiento),
         ),
         const SizedBox(height: espacio8),
       ],

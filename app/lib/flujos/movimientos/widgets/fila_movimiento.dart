@@ -8,8 +8,16 @@ import '../modelos/movimiento.dart';
 class FilaMovimiento extends StatelessWidget {
   final Movimiento movimiento;
   final VoidCallback? alMarcarPagado;
+  final VoidCallback? alEditar;
+  final VoidCallback? alEliminar;
 
-  const FilaMovimiento({super.key, required this.movimiento, this.alMarcarPagado});
+  const FilaMovimiento({
+    super.key,
+    required this.movimiento,
+    this.alMarcarPagado,
+    this.alEditar,
+    this.alEliminar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +59,31 @@ class FilaMovimiento extends StatelessWidget {
                   onPressed: alMarcarPagado,
                   child: const Text('Marcar como pagado'),
                 ),
+              // Editar y Eliminar viven en un menú para no desbordar la fila
+              PopupMenuButton<String>(
+                key: const Key('boton_opciones_movimiento'),
+                tooltip: 'Más opciones',
+                onSelected: (opcion) {
+                  if (opcion == 'editar') {
+                    alEditar?.call();
+                  } else if (opcion == 'eliminar') {
+                    alEliminar?.call();
+                  }
+                },
+                itemBuilder: (contexto) => [
+                  const PopupMenuItem<String>(
+                    key: Key('opcion_editar'),
+                    value: 'editar',
+                    child: Text('Editar'),
+                  ),
+                  const PopupMenuItem<String>(
+                    key: Key('opcion_eliminar'),
+                    value: 'eliminar',
+                    child: Text('Eliminar'),
+                  ),
+                ],
+                child: const Icon(Icons.more_vert, key: Key('icono_opciones_movimiento')),
+              ),
             ],
           ),
         ],

@@ -51,9 +51,13 @@ Tiene que decir `Servidor escuchando en el puerto 3000`. `npm run dev` se reinic
 | POST | `/movimientos` | header + `{ concepto, monto, fecha }` (fecha `AAAA-MM-DD`) | 201 `{ movimiento }` |
 | GET | `/movimientos` | header `Authorization: Bearer <token>` | 200 `{ movimientos: [...] }` (el más nuevo arriba) |
 | PATCH | `/movimientos/:id/pagar` | header `Authorization: Bearer <token>` | 200 `{ movimiento }` · 400 id no válido · 404 no existe o es de otro · 409 ya pagado |
+| PUT | `/movimientos/:id` | header + `{ concepto, monto, fecha }` (fecha `AAAA-MM-DD`) | 200 `{ movimiento }` · 400 id o datos no válidos · 404 no existe o es de otro · 409 el monto no se puede cambiar si está pagado |
+| DELETE | `/movimientos/:id` | header `Authorization: Bearer <token>` | 204 (sin cuerpo) · 400 id no válido · 404 no existe o es de otro |
 
 Cada movimiento trae `estado` (`pendiente` o `pagado`) y `pagado_en` (fecha y hora en ISO, o `null`).
-Cada usuario ve, guarda y paga solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.
+Cada usuario ve, guarda, paga, edita y borra solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.
+
+Un movimiento **pagado** se puede editar en concepto y fecha, pero **no en el monto**: si `PUT` recibe un monto distinto al guardado, responde 409 con "No se puede modificar el monto porque el movimiento ya está pagado". Eliminar sí está permitido en cualquier estado (la app pide confirmación).
 
 Los errores siempre vienen como `{ "error": "mensaje para mostrar" }`.
 

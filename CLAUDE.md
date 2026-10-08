@@ -38,12 +38,12 @@ Si vas a tocar una parte, mira primero quién la hizo. Los dos hacemos cambios e
 npm install
 npm run dev      # nodemon, reinicia al guardar
 npm start        # arranque normal
-npm test         # node --test, 7 pruebas
+npm test         # node --test, 8 pruebas
 
 # App (desde app/)
 flutter pub get
 flutter run
-flutter test     # 13 pruebas
+flutter test     # 18 pruebas
 flutter analyze  # debe decir "No issues found!"
 ```
 
@@ -83,9 +83,13 @@ Estas son decisiones que ya tomamos. No las cambies sin avisar.
 - Si el estado es raro: error 400 "Estado no válido".
 - La base además tiene `CHECK (estado IN ('pendiente','pagado'))` y el `UPDATE` lleva `AND estado='pendiente'` para que dos pedidos juntos no paguen dos veces.
 
+### Un movimiento pagado no cambia su monto
+
+`editarMontoPermitido(movimiento)` vive en el mismo `estado.js`: devuelve `false` cuando `estado === 'pagado'`. El `PUT /movimientos/:id` responde 409 "No se puede modificar el monto porque el movimiento ya está pagado" solo si el monto recibido es distinto al guardado; concepto y fecha sí se pueden editar. La app bloquea el campo monto en `pantalla_editar_gasto.dart` con ese mismo mensaje. Eliminar no tiene restricción de estado: solo pide confirmación.
+
 ### `usuario_id` siempre sale del token
 
-Nunca del cuerpo de la petición. El middleware `requiereSesion` lo deja en `req.usuario`. Así un usuario no puede leer ni pagar movimientos de otro (eso da 404, no 403, para no revelar que existe).
+Nunca del cuerpo de la petición. El middleware `requiereSesion` lo deja en `req.usuario`. Así un usuario no puede leer, pagar, editar ni borrar movimientos de otro (eso da 404, no 403, para no revelar que existe).
 
 ### Los mensajes de error son los mismos en la app y en el backend
 
@@ -97,7 +101,7 @@ Usa las constantes de `app/lib/comun/tema/espaciado.dart`: `espacio8`, `espacio1
 
 ### La app siempre pide la lista al backend
 
-En "Mis movimientos" lo que se ve es lo que está guardado. No confíes en un estado local después de guardar o pagar. Al marcar como pagado sí se actualiza la fila en memoria para que la respuesta sea inmediata, pero la lista se vuelve a pedir al recargar.
+En "Mis movimientos" lo que se ve es lo que está guardado. No confíes en un estado local después de guardar o pagar. Al marcar como pagado o al editar/eliminar sí se ajusta la fila en memoria para que la respuesta sea inmediata, pero la lista se vuelve a pedir al recargar.
 
 ### Errores de la app
 
@@ -111,12 +115,12 @@ En "Mis movimientos" lo que se ve es lo que está guardado. No confíes en un es
 ## Antes de dar algo por terminado
 
 ```bash
-cd backend && npm test        # 7 deben pasar
-cd app && flutter test       # 13 deben pasar
+cd backend && npm test        # 8 deben pasar
+cd app && flutter test       # 18 deben pasar
 cd app && flutter analyze    # "No issues found!"
 ```
 
-Y pruébalo a mano en el emulador: levantar backend, `flutter run`, crear cuenta, guardar un gasto, marcarlo como pagado, cerrar la app y volver a abrir para confirmar que el estado sigue ahí.
+Y pruébalo a mano en el emulador: levantar backend, `flutter run`, crear cuenta, guardar un gasto, marcarlo como pagado, editarlo (el monto debe venir bloqueado si está pagado), eliminarlo con su confirmación, y cerrar la app y volver a abrir para confirmar que todo quedó guardado.
 
 Si tocaste el backend o la base, actualiza `docs/task-0X-*.md` con las respuestas reales que da el endpoint, no solo con lo que debería dar.
 
@@ -137,6 +141,8 @@ Base: `http://localhost:3000`. Desde el emulador la app usa `http://10.0.2.2:300
 | POST | `/movimientos` | header + `{ concepto, monto, fecha }` (`AAAA-MM-DD`) | 201 `{ movimiento }` |
 | GET | `/movimientos` | header | 200 `{ movimientos: [...] }` (el más nuevo arriba) |
 | PATCH | `/movimientos/:id/pagar` | header | 200 `{ movimiento }` · 400 id inválido · 404 no existe o es de otro · 409 ya pagado |
+| PUT | `/movimientos/:id` | header + `{ concepto, monto, fecha }` | 200 `{ movimiento }` · 400 id o datos inválidos · 404 no existe o es de otro · 409 monto de un pagado |
+| DELETE | `/movimientos/:id` | header | 204 · 400 id inválido · 404 no existe o es de otro |
 
 Los errores siempre vienen como `{ "error": "mensaje para mostrar" }`.
 
@@ -152,6 +158,7 @@ Los errores siempre vienen como `{ "error": "mensaje para mostrar" }`.
 | `/inicio` | Inicio (requiere sesión) |
 | `/movimientos` | Mis movimientos (requiere sesión) |
 | `/movimientos/nuevo` | Nuevo gasto (requiere sesión) |
+| — | Editar gasto: se abre desde el menú (⋮) de la fila, sin ruta propia |
 
 Las rutas privadas revisan la sesión con `app/lib/comun/servicios/guardia.dart`.
 
@@ -166,27 +173,31 @@ Las rutas privadas revisan la sesión con `app/lib/comun/servicios/guardia.dart`
 | `backend/src/comun/middleware/requiereSesion.js` | Revisa el token antes de rutas protegidas |
 | `backend/src/flujos/acceso/rutas.js` | Registro, login, recuperar, cambiar contraseña |
 | `backend/src/flujos/acceso/rutasSesion.js` | `/sesion/yo`, `/sesion/salir` |
-| `backend/src/flujos/movimientos/rutas.js` | `POST`, `GET` y `PATCH /movimientos/:id/pagar` |
-| `backend/src/flujos/movimientos/servicio.js` | Consultas a la tabla `movimientos` |
-| `backend/src/flujos/movimientos/estado.js` | La regla de pendiente → pagado |
+| `backend/src/flujos/movimientos/rutas.js` | `POST`, `GET`, `PATCH /pagar`, `PUT` y `DELETE /:id` |
+| `backend/src/flujos/movimientos/servicio.js` | Consultas a la tabla `movimientos` (incluye `actualizarMovimiento`, `eliminarMovimiento`) |
+| `backend/src/flujos/movimientos/estado.js` | La regla de pendiente → pagado y `editarMontoPermitido` |
 | `backend/src/flujos/movimientos/validaciones.js` | `validarConcepto`, `validarMonto`, `validarIdMovimiento` |
 | `app/lib/main.dart` | Arranca la app: con sesión abre Inicio, sin sesión la Bienvenida |
 | `app/lib/rutas.dart` | El mapa de rutas |
-| `app/lib/comun/servicios/api.dart` | `get`, `post`, `patch` + `ErrorApi` |
+| `app/lib/comun/servicios/api.dart` | `get`, `post`, `patch`, `put`, `delete` + `ErrorApi` |
 | `app/lib/comun/servicios/guardia.dart` | `leerTokenOIrAlLogin`, `mandarAlLogin` |
 | `app/lib/comun/servicios/sesion.dart` | Guarda y lee el token |
 | `app/lib/comun/formato.dart` | `fechaCorta`, `fechaParaApi`, `montoEnBs` |
 | `app/lib/comun/tema/` | Colores, espaciado y tipografía |
 | `app/lib/flujos/movimientos/modelos/movimiento.dart` | Modelo con `estado` y `pagadoEn` |
-| `app/lib/flujos/movimientos/widgets/fila_movimiento.dart` | Fila con el chip de estado y el botón de pagar |
-| `app/lib/flujos/movimientos/widgets/confirmacion_pagar.dart` | Diálogo Confirmar / Cancelar |
+| `app/lib/flujos/movimientos/servicios/movimientos_servicio.dart` | Leer, crear, pagar, `editarMovimiento` y `eliminarMovimiento` |
+| `app/lib/flujos/movimientos/widgets/fila_movimiento.dart` | Fila con chip de estado, botón de pagar y menú Editar/Eliminar |
+| `app/lib/flujos/movimientos/widgets/confirmacion_pagar.dart` | Diálogo Confirmar / Cancelar para pagar |
+| `app/lib/flujos/movimientos/widgets/confirmacion_eliminar.dart` | Diálogo Cancelar / Eliminar antes de borrar |
+| `app/lib/flujos/movimientos/pantallas/pantalla_editar_gasto.dart` | Editar gasto (monto bloqueado si está pagado) |
 
 ## Pruebas
 
 | Archivo | Cuántas | Qué cubren |
 |---|---|---|
-| `backend/tests/movimientos/estado.test.js` | 7 | La regla del estado y `validarIdMovimiento` |
+| `backend/tests/movimientos/estado.test.js` | 8 | La regla del estado, `editarMontoPermitido` y `validarIdMovimiento` |
 | `app/test/movimientos_estado_test.dart` | 10 | Modelo, chip, botón, confirmación y datos conservados |
+| `app/test/movimientos_edicion_test.dart` | 5 | Monto bloqueado si pagado, menú Editar/Eliminar y confirmación de borrado |
 | `app/test/movimientos_validaciones_test.dart` | 2 | Mensajes de concepto y monto |
 | `app/test/widget_test.dart` | 1 | Arranque sin sesión |
 
@@ -197,6 +208,7 @@ Las rutas privadas revisan la sesión con `app/lib/comun/servicios/guardia.dart`
 | `docs/project-card.md` | Datos de la entrega |
 | `docs/task-01-access.md` | Tarea 1: acceso |
 | `docs/task-02-state-tests.md` | Tarea 2: cambio de estado y pruebas |
+| `docs/task-03-editar-eliminar.md` | Tarea 3: editar, eliminar y la restricción del monto pagado |
 | `docs/sistema-visual.md` | Colores, tipografía y espaciado |
 | `docs/bitacora.md` | Qué se hizo en cada paso, con qué se probó |
 | `backend/LEEME.md` | Endpoints del backend |
