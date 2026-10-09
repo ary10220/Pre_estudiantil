@@ -98,6 +98,11 @@ class _PantallaInicioState extends State<PantallaInicio> {
                       textoCargando: 'Mis movimientos',
                       alPresionar: () => Navigator.pushNamed(context, '/movimientos'),
                     ),
+                    const SizedBox(height: espacio16),
+                    BotonSecundario(
+                      texto: 'Límite del mes',
+                      alPresionar: () => Navigator.pushNamed(context, '/limite'),
+                    ),
                   ],
                 ),
               ),

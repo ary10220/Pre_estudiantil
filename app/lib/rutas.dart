@@ -7,6 +7,7 @@ import 'flujos/acceso/pantallas/pantalla_recuperar.dart';
 import 'flujos/acceso/pantallas/pantalla_registro.dart';
 import 'flujos/movimientos/pantallas/pantalla_movimientos.dart';
 import 'flujos/movimientos/pantallas/pantalla_nuevo_gasto.dart';
+import 'flujos/limite/pantallas/pantalla_limite.dart';
 
 final Map<String, WidgetBuilder> rutas = {
   '/': (_) => const PantallaBienvenida(),
@@ -18,4 +19,5 @@ final Map<String, WidgetBuilder> rutas = {
   '/inicio': (_) => const PantallaInicio(),
   '/movimientos': (_) => const PantallaMovimientos(),
   '/movimientos/nuevo': (_) => const PantallaNuevoGasto(),
+  '/limite': (_) => const PantallaLimite(),
 };

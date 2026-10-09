@@ -9,6 +9,7 @@ Se corren **en orden** y **una sola vez** cada una.
 | 1 | `001_acceso.sql` | Crea `usuarios`, `sesiones`, `recuperaciones` (Tarea 1) |
 | 2 | `002_movimientos.sql` | Crea `movimientos` (Flujo 1 · Guardar movimiento) |
 | 3 | `003_estado_movimiento.sql` | Agrega `estado` (`pendiente`/`pagado`) y `pagado_en` a `movimientos` (Tarea 2) |
+| 4 | `004_limite_mensual.sql` | Agrega `limite_mensual` a `usuarios` (HU-01) |
 
 ## Base nueva
 
@@ -19,6 +20,7 @@ createdb -U postgres presupuesto_estudiantil
 psql -U postgres -d presupuesto_estudiantil -f database/migraciones/001_acceso.sql
 psql -U postgres -d presupuesto_estudiantil -f database/migraciones/002_movimientos.sql
 psql -U postgres -d presupuesto_estudiantil -f database/migraciones/003_estado_movimiento.sql
+psql -U postgres -d presupuesto_estudiantil -f database/migraciones/004_limite_mensual.sql
 ```
 
 ## Base que ya tenía las anteriores

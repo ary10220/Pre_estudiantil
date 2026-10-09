@@ -53,6 +53,8 @@ Tiene que decir `Servidor escuchando en el puerto 3000`. `npm run dev` se reinic
 | PATCH | `/movimientos/:id/pagar` | header `Authorization: Bearer <token>` | 200 `{ movimiento }` · 400 id no válido · 404 no existe o es de otro · 409 ya pagado |
 | PUT | `/movimientos/:id` | header + `{ concepto, monto, fecha }` (fecha `AAAA-MM-DD`) | 200 `{ movimiento }` · 400 id o datos no válidos · 404 no existe o es de otro · 409 el monto no se puede cambiar si está pagado |
 | DELETE | `/movimientos/:id` | header `Authorization: Bearer <token>` | 204 (sin cuerpo) · 400 id no válido · 404 no existe o es de otro |
+| GET | `/limite` | header `Authorization: Bearer <token>` | 200 `{ limite }` (`null` si todavía no lo definió) |
+| PUT | `/limite` | header + `{ limite }` | 200 `{ limite }` · 400 "El límite debe ser un número mayor a 0" |
 
 Cada movimiento trae `estado` (`pendiente` o `pagado`) y `pagado_en` (fecha y hora en ISO, o `null`).
 Cada usuario ve, guarda, paga, edita y borra solo sus movimientos: el `usuario_id` sale del token, nunca del cuerpo.

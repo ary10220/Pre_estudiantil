@@ -3,6 +3,7 @@ const express = require('express');
 const rutasAuth = require('./flujos/acceso/rutas');
 const rutasSesion = require('./flujos/acceso/rutasSesion');
 const rutasMovimientos = require('./flujos/movimientos/rutas');
+const rutasLimite = require('./flujos/limite/rutas');
 
 const app = express();
 app.use(express.json());
@@ -10,6 +11,7 @@ app.use(express.json());
 app.use('/auth', rutasAuth);
 app.use('/sesion', rutasSesion);
 app.use('/movimientos', rutasMovimientos);
+app.use('/limite', rutasLimite);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
