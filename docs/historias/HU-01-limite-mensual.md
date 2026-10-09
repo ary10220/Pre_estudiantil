@@ -1,4 +1,4 @@
-# HU-01 · Límite mensual
+# HU-01 · Límite mensual · Implementada (issues #1 a #4)
 
 ## Historia de usuario
 
@@ -6,10 +6,10 @@ Como estudiante, quiero definir un límite mensual de gastos para saber cuánto 
 
 ## Criterios de aceptación
 
-- [ ] Solo se acepta un límite mayor a 0.
-- [ ] Un límite vacío, en 0, negativo o con letras se rechaza con el mensaje "El límite debe ser un número mayor a 0".
-- [ ] El límite se guarda y permanece después de recargar.
-- [ ] Cada usuario ve y cambia solo su propio límite.
+- [x] Solo se acepta un límite mayor a 0.
+- [x] Un límite vacío, en 0, negativo o con letras se rechaza con el mensaje "El límite debe ser un número mayor a 0".
+- [x] El límite se guarda y permanece después de recargar.
+- [x] Cada usuario ve y cambia solo su propio límite.
 
 ## Issues
 
