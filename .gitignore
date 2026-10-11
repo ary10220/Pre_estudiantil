@@ -50,3 +50,5 @@ app.*.map.json
 # Backend
 servidor/.env
 servidor/node_modules/
+# Claude Code (local de cada uno, no se sube)
+.claude/
