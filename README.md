@@ -1,146 +1,112 @@
-# Presupuesto Estudiantil
+# UniBudget - Presupuesto Estudiantil
 
-App móvil para que estudiantes universitarios organicen sus ingresos, gastos y presupuesto del mes.
-Proyecto 2 · Interacción Hombre-Computador · UAGRM
+App móvil para que estudiantes organicen sus ingresos y gastos.
+Incluye:
+- **Tarea 1:** el manejo de acceso (registro, inicio y cierre de sesión, recuperación de contraseña, sesión conservada, una ruta pública y una ruta privada, "Mis movimientos").
+- **Tareas 2 y 3:** el ciclo completo de un movimiento (crear, marcar como pagado, editar y eliminar).
+- **HU-01:** el límite mensual de gastos.
 
-Integrantes: Claure Cota Ariany · Franco Moron Luis Enrique
+## Tecnologías
 
-## Cómo está armado
+- **App:** Flutter (Dart), probada en el emulador de Android Studio (Pixel 6a)
+- **API:** Node.js + Express
+- **Base de datos:** PostgreSQL
 
 ```
-App Flutter (celular)  ──HTTP/JSON──▶  Backend Node/Express  ──SQL──▶  PostgreSQL
+App Flutter  →  API (servidor/)  →  PostgreSQL
 ```
 
 ## Requisitos
 
-| Herramienta | Versión | Para qué |
-|---|---|---|
-| Node.js | 18 o más | Backend |
-| PostgreSQL | 16 o más | Base de datos |
-| Flutter | 3.x con Dart 3 | App Android |
-| Android SDK + emulador | API 36 | Correr la app |
+- Flutter y Dart
+- Android Studio con un emulador Android
+- Node.js (v18 o superior)
+- PostgreSQL
 
-## Cómo correrlo
+## Cómo iniciar el proyecto
 
-**1. Base de datos (solo la primera vez).** Desde la carpeta del proyecto:
+### 1. Base de datos
 
-```
-createdb -U postgres presupuesto_estudiantil
-psql -U postgres -d presupuesto_estudiantil -f database/migraciones/001_acceso.sql
-psql -U postgres -d presupuesto_estudiantil -f database/migraciones/002_movimientos.sql
-psql -U postgres -d presupuesto_estudiantil -f database/migraciones/003_estado_movimiento.sql
+En pgAdmin (o `psql`) crea la base y las tablas:
+
+```sql
+CREATE DATABASE presupuesto_estudiantil;
 ```
 
-Si `psql` no está en el PATH, usar la ruta completa, por ejemplo
-`"C:\Program Files\PostgreSQL\18\bin\psql.exe"`. Las migraciones se corren **en orden y una sola vez**.
+Conéctate a esa base y ejecuta el contenido de `base_datos/esquema.sql`.
 
-**2. Backend.** Desde `backend/`:
+Si tu base se creó antes de la HU-01, no la borres: ejecuta solo `base_datos/cambios/001_limite_mensual.sql`, que agrega la columna `limite_mensual`.
 
+### 2. Servidor (API)
+
+```powershell
+cd servidor
+copy .env.example .env
 ```
+
+Abre `servidor/.env` y escribe tu contraseña de PostgreSQL en `DB_PASSWORD`. Luego:
+
+```powershell
 npm install
-copy .env.ejemplo .env
+node semilla.js
+node servidor.js
 ```
 
-Abrir `.env` y poner la clave de PostgreSQL:
+- `node semilla.js` carga el usuario de prueba (ver más abajo).
+- `node servidor.js` deja la API en `http://localhost:3000`. Déjala corriendo.
+- Comprobación: abrir `http://localhost:3000/ping` debe mostrar `{"mensaje":"Servidor funcionando"}`.
 
-```
-DATABASE_URL=postgres://usuario:clave@localhost:5432/presupuesto_estudiantil
-PUERTO=3000
-```
+### 3. App Flutter
 
-Después, cada vez que se quiera usar la app:
+Con el emulador de Android encendido, desde la raíz del proyecto:
 
-```
-npm run dev
-```
-
-Tiene que decir `Servidor escuchando en el puerto 3000`. `npm run dev` se reinicia solo al guardar cambios; `npm start` es el arranque normal.
-
-**3. App.** Con el emulador abierto, desde `app/`:
-
-```
+```powershell
 flutter pub get
 flutter run
 ```
 
-La app se conecta a `http://10.0.2.2:3000`, que es la PC vista desde el emulador. Para un celular real hay que cambiar `urlBase` en `app/lib/comun/servicios/api.dart` por la IP de la PC.
+La app se conecta a `http://10.0.2.2:3000` (en el emulador, `10.0.2.2` es el `localhost` de la PC). Esta dirección está en `lib/configuracion/constantes.dart`.
 
-## Pantallas
+## Usuario de prueba (semilla)
 
-| Ruta | Pantalla |
+| Correo | Contraseña |
 |---|---|
-| `/` | Bienvenida |
-| `/registro` | Crear cuenta |
-| `/login` | Iniciar sesión |
-| `/recuperar` | Recuperar contraseña (muestra el código) |
-| `/nueva-contrasena` | Poner contraseña nueva con el código |
-| `/inicio` | Inicio (requiere sesión) |
-| `/movimientos` | Mis movimientos: lista de gastos con su estado (requiere sesión) |
-| `/movimientos/nuevo` | Nuevo gasto: concepto, monto y fecha (requiere sesión) |
-| — | Editar gasto: se abre desde el menú (⋮) de cada fila, no tiene ruta propia |
+| prueba@correo.com | 123456 |
 
-Si ya hay una sesión guardada, la app abre directo en Inicio.
+## Recuperación de contraseña
 
-### Probar una ruta escribiéndola
+No se envía correo real. Al pedir el código, la app lo muestra en pantalla (6 dígitos, válido 15 minutos).
 
-Con el emulador abierto, en una terminal (reemplazar `inicio` por cualquier ruta de la tabla):
+## Pruebas unitarias
 
-```
-adb shell am start -a android.intent.action.VIEW -d "presupuesto://app/inicio"
-```
+Desde la raíz del proyecto:
 
-Sin sesión, `/inicio` redirige al login con "Tu sesión terminó, iniciá sesión de nuevo". Las rutas públicas se abren igual.
-
-La sesión (token) dura **7 días**: se guarda en la tabla `sesiones` con su `expira_en`, y el backend la rechaza cuando vence.
-
-## Pendiente y pagado
-
-Cada movimiento tiene un estado: `pendiente` (nace así) o `pagado`. En "Mis movimientos", cada fila muestra un chip con el estado y, si está pendiente, el botón **Marcar como pagado** con una confirmación. Al confirmar, la app llama a `PATCH /movimientos/:id/pagar`, el backend guarda `estado = 'pagado'` con su `pagado_en`, y la fila pasa a Pagado. Es de un solo sentido: no hay vuelta atrás.
-
-## Editar y eliminar
-
-Cada fila tiene un menú (**⋮**) con **Editar** y **Eliminar**:
-
-- **Editar** abre "Editar gasto" con los datos cargados. **Si el movimiento ya está pagado, el campo monto queda bloqueado** (la regla del proyecto: *un movimiento pagado no permite modificar su monto*); concepto y fecha sí se pueden cambiar. Al guardar, la app llama a `PUT /movimientos/:id` y recarga la lista. Si alguien manda un monto distinto desde afuera, el backend responde 409 con "No se puede modificar el monto porque el movimiento ya está pagado".
-- **Eliminar** pide confirmación y luego llama a `DELETE /movimientos/:id` (204); la fila desaparece de la lista. No tiene restricción de estado, pero solo borra movimientos propios.
-
-Todo queda guardado en PostgreSQL: los cambios se ven al cerrar y volver a abrir la app. Detalle completo con las respuestas reales del endpoint en [docs/task-03-editar-eliminar.md](docs/task-03-editar-eliminar.md).
-
-## Pruebas
-
-### Backend
-
-Las pruebas unitarias de la regla del estado (pendiente → pagado) y de la regla del monto (un pagado no permite cambiarlo) no necesitan base de datos ni servidor:
-
-```
-cd backend
-npm test
-```
-
-Usa el runner de Node (`node --test`), sin instalar nada. Son 8 pruebas de `tests/movimientos/estado.test.js`.
-
-### App Flutter
-
-Las pruebas del modelo, del chip Pendiente/Pagado, del botón "Marcar como pagado", de su confirmación, y de editar/eliminar:
-
-```
-cd app
+```powershell
 flutter test
 ```
 
-Son 18 pruebas: 10 de `test/movimientos_estado_test.dart`, 5 de `test/movimientos_edicion_test.dart` (monto bloqueado si está pagado, menú Editar/Eliminar y confirmación de borrado), 2 de `test/movimientos_validaciones_test.dart` y 1 de `test/widget_test.dart`.
+Las pruebas están en `test/`:
+
+- `movimiento_test.dart`: estado inicial, transición `pendiente → pagado`, rechazo de transición inválida y conservación de datos.
+- `restriccion_monto_test.dart`: un movimiento pagado no permite modificar su monto.
+- `limite_validaciones_test.dart`: el límite mensual se acepta si es mayor a 0 y se rechaza si está vacío, en 0, es negativo o tiene letras.
+
+Las pruebas del servidor (la misma regla del límite) se corren desde `servidor/`:
+
+```powershell
+npm test
+```
+
+## Límite mensual (HU-01)
+
+- En "Mis movimientos", el ícono de la alcancía abre "Límite del mes".
+- El límite tiene que ser un número mayor a 0. Si no lo es, el mensaje "El límite debe ser un número mayor a 0" aparece debajo del campo.
+- Se guarda en `usuarios.limite_mensual` y se lee con `GET /limite` y `PUT /limite`, con sesión.
 
 ## Documentación
 
-- [Tarea 1 · Acceso](docs/task-01-access.md)
-- [Tarea 2 · Cambio de estado y pruebas](docs/task-02-state-tests.md)
-- [Tarea 3 · Editar y eliminar](docs/task-03-editar-eliminar.md)
-- [Sistema visual](docs/sistema-visual.md): colores, tipografía y espaciado en múltiplos de 8
-- [Backend](backend/LEEME.md): endpoints
-- [Base de datos](database/LEEME.md): migraciones
-- [Bitácora](docs/bitacora.md): qué se hizo en cada paso
-- [CLAUDE.md](CLAUDE.md): guía para trabajar con IA en este repo
-
-## Modalidad
-
-**P2 con IA (Claude Code).** Lo usamos para escribir las migraciones, el backend, las pantallas y las pruebas a partir de nuestra especificación, y para probar los endpoints con `curl` documentando las respuestas reales. Ver `docs/bitacora.md`.
+- [`docs/task-01-access.md`](docs/task-01-access.md): Tarea 1, acceso.
+- [`docs/task-02-state-tests.md`](docs/task-02-state-tests.md): Tarea 2, estado y pruebas.
+- [`docs/task-03-edit-delete.md`](docs/task-03-edit-delete.md): Tarea 3, editar y eliminar.
+- [`docs/historias/HU-01-limite-mensual.md`](docs/historias/HU-01-limite-mensual.md): HU-01, límite mensual.
+- [`docs/bitacora.md`](docs/bitacora.md): bitácora del proyecto.

@@ -5,6 +5,8 @@ Integrantes: Claure Cota Ariany (Ariany) · Franco Moron Luis Enrique (Luis)
 
 Este documento registra qué se hizo en cada paso, con qué se probó y qué queda pendiente. Va por orden de los commits.
 
+> Las secciones 1 a 9 describen la estructura anterior (`app/`, `backend/`, `database/`). Desde la sección 10 el repositorio usa la estructura de la versión de Luis (`lib/`, `servidor/`, `base_datos/`).
+
 ---
 
 ## 1. Base del proyecto
@@ -213,3 +215,52 @@ Lo que NO hizo la IA: las decisiones de diseño (dónde vive la regla, por qué 
 
 - **Video de 2 minutos** (grabado por Luis).
 - **Bitácora final** con los aportes de cada integrante para la entrega.
+
+---
+
+## 10. Reorganización: el código de Luis en este repositorio (rama `reorganizacion`)
+
+**Qué se decidió:**
+- Este repositorio sigue siendo el del proyecto.
+- El contenido pasa a ser la versión de Luis (`github.com/EnriqueFrancoM/ihc_pre_estudiantil2`, commit `f217f3e`), que llega hasta la Tarea 3, con su interfaz.
+- Se conserva lo que esta versión ya tenía y la de Luis no: la **HU-01 · límite mensual** y las contraseñas tapadas con lápices.
+
+**Qué cambió:**
+
+| Antes | Ahora |
+|---|---|
+| `app/` (Flutter por flujos) | `lib/` en la raíz: `configuracion/`, `modelos/`, `servicios/`, `pantallas/`, `widgets/` |
+| `backend/src/` (Express por flujos) | `servidor/servidor.js`, con todas las rutas, y `servidor/limite.js` |
+| `database/migraciones/001–004` | `base_datos/esquema.sql`, más `base_datos/cambios/001_limite_mensual.sql` para bases que ya existían |
+| `/auth/*`, `/sesion/*`, `PATCH /movimientos/:id/pagar` | `/registro`, `/login`, `/perfil`, `/logout`, `POST /movimientos/:id/pagar` (los de Luis) |
+
+**HU-01 trasladada:**
+- La regla `validarLimite` y su mensaje son los mismos, en `servidor/limite.js` y en `lib/modelos/limite.dart`.
+- Los endpoints son los mismos: `GET /limite` y `PUT /limite`.
+- La columna `usuarios.limite_mensual` es la misma.
+- Las mismas 4 pruebas: 2 en `servidor/tests/limite.test.js` y 2 en `test/limite_validaciones_test.dart`.
+- La pantalla "Límite del mes" quedó con la interfaz de Luis. Se entra desde la alcancía en "Mis movimientos".
+
+**Cambios a la interfaz de Luis:**
+- `CampoTexto` recibe tres parámetros opcionales: `error` (el mensaje debajo del campo, que pide la HU-01), `alCambiar` y `pista`.
+- Las contraseñas se tapan con `✏`.
+- `Colores.rojo` es el borde del campo con error.
+
+Las demás pantallas no cambiaron.
+
+**Cómo se probó:**
+```
+flutter test     →  13 pasan (11 de Luis + 2 de la HU-01)
+flutter analyze  →  1 aviso info heredado (unnecessary_underscores en pantalla_movimientos.dart)
+npm test         →  2 pasan (servidor/)
+```
+- **API:**
+  - `GET /limite` → `null`;
+  - `PUT` con `abc`, `0`, vacío o sin cuerpo → 400 con el mensaje;
+  - `PUT 500.5` → 200, y `GET` → `500.5`;
+  - sin token → 401.
+- **Emulador:**
+  - el error aparece debajo del campo, con el borde rojo;
+  - al guardar 750 sale "Límite guardado";
+  - al volver a entrar aparece 750.00;
+  - el login muestra los lápices.

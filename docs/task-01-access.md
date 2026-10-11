@@ -1,71 +1,81 @@
-# Tarea 1 · Acceso (registro, login y recuperación)
+# Tarea 1 - Manejo de acceso
 
-Proyecto 2 · Presupuesto Estudiantil · IHC · UAGRM
-Integrantes: Claure Cota Ariany · Franco Moron Luis Enrique
+**Producto elegido:** Presupuesto Estudiantil (UniBudget)
+**Ruta privada:** "Mis movimientos"
 
 ## Modalidad
 
-**Con IA.** Usamos un asistente de programación con IA para:
+- P1: sin IA
+- P2: con IA
 
-- armar la estructura inicial del backend y de las pantallas a partir de nuestra especificación (endpoints, mensajes de error, paleta, tipografía y espaciado),
-- escribir y correr las pruebas de cada endpoint (caso feliz y cada error),
-- revisar que los espacios de las pantallas respeten la retícula de 8.
+**Tipo de aplicación:** app móvil en Flutter, con una API propia en Node.js/Express y base de datos PostgreSQL. La app no se conecta directo a la base de datos: siempre pasa por la API.
 
+## Funcionalidad implementada
 
-## Cómo funciona
-
-```
-App Flutter  ──HTTP/JSON──▶  Backend Node/Express  ──SQL──▶  PostgreSQL
-```
-
-1. **Registro:** la app manda nombre, correo y contraseña. El backend valida, guarda la contraseña como hash bcrypt y crea el usuario.
-2. **Login:** el backend compara la contraseña con el hash. Si coincide crea un token, lo guarda en la tabla `sesiones` (vence en 7 días) y se lo devuelve a la app.
-3. **Rutas protegidas:** la app manda `Authorization: Bearer <token>`; el middleware `requiereSesion` busca el token en `sesiones` y, si no existe o venció, responde 401.
-4. **Recuperación:** el backend genera un código de 6 dígitos (vence en 15 min) y la app lo muestra. Con el código se pone una contraseña nueva; el código queda usado y se cierran todas las sesiones de ese usuario.
+| Requisito | Dónde está |
+|---|---|
+| Registro de cuenta nueva | `PantallaRegistro` → `POST /registro` |
+| Inicio de sesión | `PantallaLogin` → `POST /login` |
+| Cierre de sesión | Botón de salida en `PantallaMovimientos` → `POST /logout` |
+| Recuperación y cambio de contraseña | `PantallaRecuperar` → `POST /recuperar` y `POST /cambiar-contrasena` |
+| Sesión conservada al recargar | Token en `shared_preferences`, validado por `PantallaArranque` |
+| Ruta pública | `PantallaInicio` (bienvenida) |
+| Ruta privada con redirección al login | `PantallaMovimientos`, protegida con `GET /perfil` |
+| Nombre de la persona autenticada | "Hola, {nombre}" en `PantallaMovimientos` |
 
 ## Decisiones
 
-| Decisión | Por qué |
-|---|---|
-| Backend entre la app y PostgreSQL | Si la app se conectara directo a la base, la clave de la base viajaría dentro del celular y cualquiera podría sacarla del APK. Con el backend la clave queda solo en el servidor (`.env`, que no se sube). |
-| Contraseñas con bcrypt (costo 10) | Nunca se guarda la contraseña: se guarda un hash que no se puede revertir. Si alguien roba la base, no ve las contraseñas. |
-| Token guardado en la tabla `sesiones` | Podemos cerrar una sesión borrando la fila (`/sesion/salir`) y cerrar todas al cambiar la contraseña. Cada token vence a los 7 días. |
-| Código mostrado en pantalla en vez de mandarlo por correo | La tarea no exige enviar correo real. El flujo (código de 6 dígitos, vence en 15 min, se usa una sola vez) es el mismo; solo cambia por dónde llega. |
-| Mismo mensaje si el correo no existe o la contraseña está mal | "El correo o la contraseña no coinciden" no revela qué correos tienen cuenta. |
-| Errores debajo de cada campo | El usuario ve exactamente qué corregir y dónde. El error se borra apenas empieza a escribir. |
-| Botón siempre activo | Valida al tocarlo y explica qué falta, en vez de quedar gris sin decir por qué. Mientras espera al servidor dice "Ingresando…" o "Guardando…" y no se puede tocar dos veces. |
-| Espaciado en múltiplos de 8 y tema en una carpeta | Ver `docs/sistema-visual.md`. Todas las pantallas usan las mismas constantes, así se ven consistentes. |
-| Fuentes incluidas en la app | Manrope y Plus Jakarta Sans van dentro del APK (`app/assets/google_fonts/`), así se ven bien aunque no haya internet. |
+1. **Sesión con token guardado en la base de datos.** Al iniciar sesión el servidor genera un token aleatorio, lo guarda en la tabla `sesiones` con fecha de expiración (7 días) y lo devuelve a la app. Así el servidor puede invalidar sesiones (cerrar sesión borra la fila).
+2. **Contraseñas con hash.** Se guardan con `bcryptjs`; nunca en texto plano.
+3. **Protección de la ruta privada en dos lados.** La app no muestra contenido hasta que el servidor confirma el token, y la API rechaza con `401` cualquier petición privada sin sesión válida.
+4. **Recuperación sin correo real.** El servidor genera un código de 6 dígitos (tabla `recuperaciones`, vence en 15 minutos, un solo uso) y lo devuelve a la app para mostrarlo en pantalla, como permite la tarea.
+5. **Cambiar la contraseña cierra las demás sesiones** de esa cuenta.
+6. **Semilla** (`servidor/semilla.js`): crea el usuario de prueba con contraseña real encriptada. Se puede ejecutar varias veces sin duplicar.
+7. **Estructura simple por tipo de archivo**, con nombres en español, para que sea fácil de explicar.
 
 ## Archivos principales
 
-### Luis: diseño de la base
+**Base de datos**
+- `base_datos/esquema.sql`: tablas `usuarios`, `sesiones`, `recuperaciones`
 
-| Archivo | Qué hace |
-|---|---|
-| `database/esquema.sql` | Diseño de las tablas `usuarios`, `sesiones` y `recuperaciones` |
+**Servidor (`servidor/`)**
+- `servidor.js`: rutas de la API y verificación de sesión (`exigirSesion`)
+- `conexion.js`: conexión a PostgreSQL
+- `semilla.js`: datos iniciales
+- `.env.example`: variables necesarias
 
-### Ariany: backend, app y documentación
+**App (`lib/`)**
+- `main.dart`: arranque, tema y rutas
+- `configuracion/rutas.dart`: pantallas con nombre
+- `configuracion/constantes.dart`: colores y dirección del servidor
+- `servicios/servicio_acceso.dart`: comunicación con la API y manejo del token
+- `pantallas/pantalla_arranque.dart`: decide a dónde ir según la sesión
+- `pantallas/pantalla_inicio.dart`, `pantalla_login.dart`, `pantalla_registro.dart`, `pantalla_recuperar.dart`: acceso
+- `pantallas/pantalla_movimientos.dart`: ruta privada
+- `widgets/`: botón, campo de texto, mensajes y fondo decorativo reutilizables
 
-| Archivo | Qué hace |
-|---|---|
-| `backend/src/servidor.js` | Arranca Express, monta `/auth` y `/sesion`, responde errores en JSON |
-| `backend/src/bd.js` | Pool de conexiones a PostgreSQL |
-| `backend/src/servicios/usuarios.js` | Crear, buscar y cambiar contraseña (bcrypt) |
-| `backend/src/servicios/sesiones.js` | Crear token, buscar usuario por token, borrar sesiones |
-| `backend/src/servicios/recuperaciones.js` | Generar, verificar y marcar como usado el código |
-| `backend/src/middleware/requiereSesion.js` | Revisa el token antes de las rutas protegidas |
-| `backend/src/rutas/auth.js` | Registro, login, recuperar y cambiar contraseña |
-| `backend/src/rutas/sesion.js` | `/sesion/yo` y `/sesion/salir` |
-| `app/lib/main.dart` | Arranca la app: si hay sesión guardada abre Inicio, si no la Bienvenida |
-| `app/lib/rutas.dart` | Rutas `/`, `/login`, `/registro`, `/recuperar`, `/nueva-contrasena`, `/inicio` |
-| `app/lib/tema/` | Colores, tipografía, espaciado y `crearTema()` |
-| `app/lib/modelos/usuario.dart` | Modelo del usuario |
-| `app/lib/servicios/api.dart` | URL del backend y manejo de errores / sin conexión |
-| `app/lib/servicios/auth_servicio.dart` | Llamadas a `/auth` y `/sesion` |
-| `app/lib/servicios/sesion.dart` | Guardar, leer y borrar la sesión en el celular (`shared_preferences`) |
-| `app/lib/servicios/validaciones.dart` | Mismas reglas que el backend |
-| `app/lib/widgets/` | Campo de texto, botón principal y botón secundario |
-| `app/lib/pantallas/publicas/` | Bienvenida, Login, Registro, Recuperar y Nueva contraseña |
-| `app/lib/pantallas/privadas/pantalla_inicio.dart` | Inicio: saluda, confirma la sesión con `/sesion/yo` y permite cerrar sesión |
-| `README.md`, `backend/LEEME.md`, `docs/` | Instrucciones y documentación |
+## API
+
+| Método | Ruta | Requiere sesión |
+|---|---|---|
+| GET | `/ping` | No |
+| POST | `/registro` | No |
+| POST | `/login` | No |
+| POST | `/recuperar` | No |
+| POST | `/cambiar-contrasena` | No |
+| GET | `/perfil` | Sí |
+| POST | `/logout` | Sí |
+
+## Cómo comprobar la protección de la ruta privada
+
+1. Iniciar sesión con `prueba@correo.com` / `123456`.
+2. En pgAdmin ejecutar `DELETE FROM sesiones;`.
+3. Cerrar y volver a abrir la app: vuelve a la bienvenida en vez de mostrar "Mis movimientos".
+
+## Limitaciones conocidas
+
+- El token se guarda en `shared_preferences`, que no está cifrado. Para producción convendría `flutter_secure_storage`.
+- La app usa `http` (no `https`) y `usesCleartextTraffic` porque el servidor es local de desarrollo.
+- El código de recuperación se muestra en pantalla porque no hay envío de correo.
+- No hay límite de intentos de login ni de códigos.
+- `10.0.2.2` solo funciona en el emulador; en un celular físico habría que usar la IP de la PC.
