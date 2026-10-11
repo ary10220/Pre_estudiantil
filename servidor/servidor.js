@@ -3,7 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('./conexion');
-const { validarLimite } = require('./limite');
+const { validarMontoLimite } = require('./limite');
 
 const app = express();
 app.use(cors());
@@ -283,9 +283,9 @@ app.get('/limite', exigirSesion, async (req, res) => {
 
 app.put('/limite', exigirSesion, async (req, res) => {
   const { limite } = req.body || {};
-  const error = validarLimite(limite);
-  if (error) {
-    return res.status(400).json({ error });
+  const validacion = validarMontoLimite(limite);
+  if (!validacion.ok) {
+    return res.status(400).json({ error: validacion.error });
   }
 
   const resultado = await pool.query(
