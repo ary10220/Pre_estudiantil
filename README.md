@@ -110,3 +110,4 @@ npm test
 - [`docs/task-03-edit-delete.md`](docs/task-03-edit-delete.md): Tarea 3, editar y eliminar.
 - [`docs/historias/HU-01-limite-mensual.md`](docs/historias/HU-01-limite-mensual.md): HU-01, límite mensual.
 - [`docs/bitacora.md`](docs/bitacora.md): bitácora del proyecto.
+- [`docs/issue-07-buscar-filtrar.md`](docs/issue-07-buscar-filtrar.md): Buscar y filtrar movimientos.

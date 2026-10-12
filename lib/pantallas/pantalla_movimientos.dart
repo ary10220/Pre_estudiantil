@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
+import '../modelos/filtros.dart';
 import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
 import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
+import '../widgets/campo_texto.dart';
+import '../widgets/hoja_filtros.dart';
 import '../widgets/mensajes.dart';
 import 'pantalla_nuevo_movimiento.dart';
 
@@ -19,13 +23,27 @@ class PantallaMovimientos extends StatefulWidget {
 class _PantallaMovimientosState extends State<PantallaMovimientos> {
   String? _nombre;
   List<Movimiento> _movimientos = [];
+  TotalesMovimientos? _totales;
   bool _cargandoLista = true;
   ResumenLimite? _resumen;
+
+  // Búsqueda y filtros (#7)
+  FiltrosMovimientos _filtros = FiltrosMovimientos.vacio;
+  final _buscador = TextEditingController();
+  Timer? _espera;
+  int _peticion = 0; // para ignorar respuestas viejas si se escribe rápido
 
   @override
   void initState() {
     super.initState();
     _verificarSesion();
+  }
+
+  @override
+  void dispose() {
+    _espera?.cancel();
+    _buscador.dispose();
+    super.dispose();
   }
 
   // Protección de la ruta: si no hay sesión válida, vuelve al login
@@ -50,14 +68,16 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
   }
 
-  // Recuperar: lee lo guardado y actualiza la lista y la tarjeta del límite
+  // Recuperar: lee lo guardado (con los filtros activos) y la tarjeta del límite
   Future<void> _cargarMovimientos() async {
+    final numero = ++_peticion;
     try {
-      final lista = await ServicioMovimientos.listar();
+      final listado = await ServicioMovimientos.listar(_filtros);
       final resumen = await ServicioLimite.leer();
-      if (!mounted) return;
+      if (!mounted || numero != _peticion) return;
       setState(() {
-        _movimientos = lista;
+        _movimientos = listado.movimientos;
+        _totales = listado.totales;
         _resumen = resumen;
         _cargandoLista = false;
       });
@@ -65,10 +85,47 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       if (!mounted) return;
       _volverAlLogin();
     } on ErrorAcceso catch (e) {
-      if (!mounted) return;
+      if (!mounted || numero != _peticion) return;
       setState(() => _cargandoLista = false);
       mostrarMensaje(context, e.mensaje, esError: true);
     }
+  }
+
+  // Busca 400 ms después de la última letra, para no consultar en cada tecla
+  void _alEscribir(String texto) {
+    _espera?.cancel();
+    _espera = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() => _filtros = _filtros.conBuscar(texto));
+      _cargarMovimientos();
+    });
+  }
+
+  Future<void> _abrirFiltros() async {
+    // Se aplica antes lo que haya escrito en el buscador
+    _espera?.cancel();
+    _filtros = _filtros.conBuscar(_buscador.text);
+
+    final nuevos = await mostrarHojaFiltros(context, _filtros);
+    if (nuevos == null || !mounted) return;
+    setState(() => _filtros = nuevos);
+    await _cargarMovimientos();
+  }
+
+  Future<void> _quitarFiltro(ClaveFiltro clave) async {
+    if (clave == ClaveFiltro.buscar) {
+      _espera?.cancel();
+      _buscador.clear();
+    }
+    setState(() => _filtros = _filtros.quitar(clave));
+    await _cargarMovimientos();
+  }
+
+  Future<void> _quitarTodos() async {
+    _espera?.cancel();
+    _buscador.clear();
+    setState(() => _filtros = FiltrosMovimientos.vacio);
+    await _cargarMovimientos();
   }
 
   Future<void> _abrirFormulario() async {
@@ -236,9 +293,104 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               _tarjetaLimite(_resumen!),
               const SizedBox(height: 16),
             ],
+            _barraBusqueda(),
+            _filtrosActivos(),
+            _lineaTotales(),
+            const SizedBox(height: 12),
             Expanded(child: _lista()),
           ],
         ),
+      ),
+    );
+  }
+
+  // Buscador por concepto + botón de filtros (con la cantidad de filtros aplicados)
+  Widget _barraBusqueda() {
+    final cantidad = _filtros.activos.where((a) => a.clave != ClaveFiltro.buscar).length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: CampoTexto(
+            controlador: _buscador,
+            etiqueta: 'Buscar por concepto',
+            icono: Icons.search,
+            alCambiar: _alEscribir,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Filtros',
+          onPressed: _abrirFiltros,
+          icon: Badge(
+            isLabelVisible: cantidad > 0,
+            label: Text('$cantidad'),
+            backgroundColor: Colores.verdeOscuro,
+            child: const Icon(Icons.tune, color: Colores.verdeOscuro, size: 28),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Los filtros aplicados, cada uno con su X para quitarlo
+  Widget _filtrosActivos() {
+    final activos = _filtros.activos;
+    if (activos.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final a in activos)
+            InputChip(
+              label: Text(a.texto),
+              onDeleted: () => _quitarFiltro(a.clave),
+              backgroundColor: Colores.verdeClaro,
+              deleteIconColor: Colores.verdeOscuro,
+              side: BorderSide.none,
+              labelStyle: const TextStyle(
+                color: Colores.verdeOscuro,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (activos.length > 1)
+            TextButton(
+              onPressed: _quitarTodos,
+              child: const Text('Quitar todos', style: TextStyle(color: Colores.verdeOscuro)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Total de la lista que se está viendo (lo calcula el servidor sobre esa misma lista)
+  Widget _lineaTotales() {
+    final t = _totales;
+    if (t == null || _cargandoLista) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 4,
+        children: [
+          Text(
+            '${t.cantidad} ${t.cantidad == 1 ? 'movimiento' : 'movimientos'}',
+            style: const TextStyle(fontWeight: FontWeight.w700, color: Colores.azulOscuro),
+          ),
+          Text(
+            'Ingresos ${formatearBs(t.ingresos)}',
+            style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.verdeOscuro),
+          ),
+          Text(
+            'Gastos ${formatearBs(t.gastos)}',
+            style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.rojo),
+          ),
+        ],
       ),
     );
   }
@@ -250,6 +402,28 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       );
     }
     if (_movimientos.isEmpty) {
+      // Con filtros: ninguno coincide. Sin filtros: aún no hay movimientos.
+      if (_filtros.hayFiltros) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Ningún movimiento coincide\ncon la búsqueda o los filtros.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colores.grisAzulado, height: 1.5),
+              ),
+              TextButton(
+                onPressed: _quitarTodos,
+                child: const Text(
+                  'Quitar filtros',
+                  style: TextStyle(color: Colores.verdeOscuro),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
       return const Center(
         child: Text(
           'Aún no tienes movimientos.\nCrea el primero con el botón de abajo.',
@@ -346,7 +520,10 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(m.fechaTexto, style: const TextStyle(color: Colores.grisAzulado)),
+          Text(
+            '${m.tipo.texto} · ${m.categoria.texto} · ${m.fechaTexto}',
+            style: const TextStyle(color: Colores.grisAzulado),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -357,7 +534,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  pagado ? 'Pagado' : 'Pendiente',
+                  m.estado.texto,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: pagado ? Colores.verdeOscuro : const Color(0xFF8A5A00),
