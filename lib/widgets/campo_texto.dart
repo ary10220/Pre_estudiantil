@@ -59,6 +59,7 @@ class _CampoTextoState extends State<CampoTexto> {
         labelText: widget.etiqueta,
         hintText: widget.pista,
         errorText: widget.error,
+        errorMaxLines: 3,
         labelStyle: const TextStyle(color: Colores.grisAzulado),
         floatingLabelStyle: const TextStyle(color: Colores.verdeOscuro),
         prefixIcon: Icon(widget.icono, color: Colores.verdeOscuro),

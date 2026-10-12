@@ -1,3 +1,4 @@
+import '../modelos/limite.dart';
 import 'servicio_acceso.dart';
 import 'servicio_movimientos.dart';
 
@@ -20,15 +21,17 @@ class ServicioLimite {
     return ServicioAcceso.leer(respuesta);
   }
 
-  // null si la persona todavía no definió su límite
-  static Future<double?> leer() async {
+  // Límite, gastado y restante del mes actual (limite null si no lo definió)
+  static Future<ResumenLimite> leer() async {
     final datos = await _pedir('GET');
-    final limite = datos['limite'] as num?;
-    return limite?.toDouble();
+    return ResumenLimite.desdeJson(datos);
   }
 
-  static Future<double> guardar(double limite) async {
-    final datos = await _pedir('PUT', datos: {'limite': limite});
-    return (datos['limite'] as num).toDouble();
+  // Primero la regla del modelo, después la API
+  static Future<ResumenLimite> guardar(String texto) async {
+    final error = validarMontoLimite(texto);
+    if (error != null) throw StateError(error);
+    final datos = await _pedir('PUT', datos: {'monto': leerLimite(texto)});
+    return ResumenLimite.desdeJson(datos);
   }
 }
