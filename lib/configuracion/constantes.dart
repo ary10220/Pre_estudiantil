@@ -8,6 +8,8 @@ class Colores {
   static const Color fondo = Color(0xFFF7F9F9);
   // El mismo rojo que ya usan los mensajes de error (Colors.red.shade700)
   static const Color rojo = Color(0xFFD32F2F);
+  // El mismo ámbar del chip "Pendiente": aviso al pasar el 80 % del límite
+  static const Color aviso = Color(0xFF8A5A00);
 }
 
 class Servidor {

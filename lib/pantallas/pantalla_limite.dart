@@ -20,6 +20,7 @@ class _PantallaLimiteState extends State<PantallaLimite> {
   final _limite = TextEditingController();
   String? _errorLimite;
   bool _cargando = false;
+  ResumenLimite? _resumen;
 
   @override
   void initState() {
@@ -40,9 +41,12 @@ class _PantallaLimiteState extends State<PantallaLimite> {
   // Al entrar se pide el límite a la base: así se ve lo guardado aunque se cierre la app
   Future<void> _cargarLimite() async {
     try {
-      final limite = await ServicioLimite.leer();
-      if (!mounted || limite == null) return;
-      setState(() => _limite.text = limite.toStringAsFixed(2));
+      final resumen = await ServicioLimite.leer();
+      if (!mounted) return;
+      setState(() {
+        _resumen = resumen;
+        if (resumen.tieneLimite) _limite.text = resumen.limite!.toStringAsFixed(2);
+      });
     } on SesionExpirada {
       if (!mounted) return;
       _volverAlLogin();
@@ -53,25 +57,25 @@ class _PantallaLimiteState extends State<PantallaLimite> {
   }
 
   Future<void> _guardar() async {
-    setState(() => _errorLimite = validarLimite(_limite.text));
+    setState(() => _errorLimite = validarMontoLimite(_limite.text));
     if (_errorLimite != null) return;
 
     setState(() => _cargando = true);
     try {
-      await ServicioLimite.guardar(leerLimite(_limite.text));
+      await ServicioLimite.guardar(_limite.text);
       if (!mounted) return;
       mostrarMensaje(context, 'Límite guardado');
+      Navigator.pop(context, true); // true = hay que refrescar la tarjeta
     } on SesionExpirada {
       if (!mounted) return;
       _volverAlLogin();
     } on ErrorAcceso catch (e) {
+      // El error del servidor (por ejemplo, "Ya gastaste…") va debajo del campo
       if (!mounted) return;
-      // Si el servidor rechazó el valor, el mensaje va debajo del campo
-      if (e.mensaje == mensajeLimiteNoValido) {
-        setState(() => _errorLimite = e.mensaje);
-      } else {
-        mostrarMensaje(context, e.mensaje, esError: true);
-      }
+      setState(() => _errorLimite = e.mensaje);
+    } on StateError catch (e) {
+      if (!mounted) return;
+      setState(() => _errorLimite = e.message);
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
@@ -104,6 +108,14 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                 'Cuánto querés gastar como máximo este mes.',
                 style: TextStyle(fontSize: 16, color: Colores.grisAzulado),
               ),
+              // El límite no puede quedar por debajo de esto
+              if (_resumen != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Este mes ya gastaste ${formatearBs(_resumen!.gastado)}.',
+                  style: const TextStyle(fontSize: 16, color: Colores.grisAzulado),
+                ),
+              ],
               const SizedBox(height: 32),
               CampoTexto(
                 controlador: _limite,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
+import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
+import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/mensajes.dart';
 import 'pantalla_nuevo_movimiento.dart';
@@ -18,6 +20,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   String? _nombre;
   List<Movimiento> _movimientos = [];
   bool _cargandoLista = true;
+  ResumenLimite? _resumen;
 
   @override
   void initState() {
@@ -47,13 +50,15 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
   }
 
-  // Recuperar: lee lo guardado y actualiza la lista
+  // Recuperar: lee lo guardado y actualiza la lista y la tarjeta del límite
   Future<void> _cargarMovimientos() async {
     try {
       final lista = await ServicioMovimientos.listar();
+      final resumen = await ServicioLimite.leer();
       if (!mounted) return;
       setState(() {
         _movimientos = lista;
+        _resumen = resumen;
         _cargandoLista = false;
       });
     } on SesionExpirada {
@@ -69,6 +74,11 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   Future<void> _abrirFormulario() async {
     final creado = await Navigator.pushNamed(context, Rutas.nuevoMovimiento);
     if (creado == true) await _cargarMovimientos();
+  }
+
+  Future<void> _abrirLimite() async {
+    final guardado = await Navigator.pushNamed(context, Rutas.limite);
+    if (guardado == true) await _cargarMovimientos();
   }
 
   // Editar: abre el mismo formulario con los datos del movimiento
@@ -191,7 +201,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
           IconButton(
             tooltip: 'Límite del mes',
             icon: const Icon(Icons.savings_outlined, color: Colores.verdeOscuro),
-            onPressed: () => Navigator.pushNamed(context, Rutas.limite),
+            onPressed: _abrirLimite,
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
@@ -221,6 +231,11 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               ),
             ),
             const SizedBox(height: 16),
+            // Sin límite definido no se muestra
+            if (_resumen?.tieneLimite ?? false) ...[
+              _tarjetaLimite(_resumen!),
+              const SizedBox(height: 16),
+            ],
             Expanded(child: _lista()),
           ],
         ),
@@ -248,6 +263,50 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       itemCount: _movimientos.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _tarjeta(_movimientos[i]),
+    );
+  }
+
+  Widget _tarjetaLimite(ResumenLimite r) {
+    final color = r.enAviso ? Colores.aviso : Colores.verdeOscuro;
+    final restante = r.restante!;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: r.enAviso ? Colores.aviso : Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Gastado ${formatearBs(r.gastado)} de ${formatearBs(r.limite!)}',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colores.azulOscuro,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: r.proporcion,
+              minHeight: 8,
+              color: color,
+              backgroundColor: Colores.verdeClaro,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            restante >= 0
+                ? 'Te quedan ${formatearBs(restante)}'
+                : 'Te pasaste por ${formatearBs(-restante)}',
+            style: TextStyle(fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
     );
   }
 
