@@ -36,6 +36,10 @@ CREATE TABLE movimientos (
     concepto    VARCHAR(150) NOT NULL,
     monto       NUMERIC(12,2) NOT NULL CHECK (monto > 0),
     fecha       DATE NOT NULL,
+    tipo        VARCHAR(10) NOT NULL DEFAULT 'gasto'
+                CHECK (tipo IN ('ingreso', 'gasto')),
+    categoria   VARCHAR(20) NOT NULL DEFAULT 'otros'
+                CHECK (categoria IN ('comida', 'transporte', 'estudio', 'otros')),
     estado      VARCHAR(10) NOT NULL DEFAULT 'pendiente'
                 CHECK (estado IN ('pendiente', 'pagado')),
     creado_en   TIMESTAMP NOT NULL DEFAULT NOW()

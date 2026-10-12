@@ -3,12 +3,22 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('./conexion');
+
 const {
   validarMontoLimite,
   validarLimiteContraGastado,
   puedeRegistrarGasto,
   calcularResumen
 } = require('./limite');
+
+const {
+  TIPOS,
+  CATEGORIAS,
+  leerFiltros,
+  filtrarMovimientos,
+  calcularTotales,
+  hoyTexto
+} = require('./filtros');
 
 const app = express();
 app.use(cors());
@@ -149,16 +159,24 @@ app.post('/cambiar-contrasena', async (req, res) => {
 // ---------- Movimientos ----------
 // fecha como texto y monto como número, para evitar problemas de zona horaria
 const COLUMNAS_MOVIMIENTO = `id, concepto, monto::float8 AS monto,
-  to_char(fecha, 'YYYY-MM-DD') AS fecha, estado`;
+  to_char(fecha, 'YYYY-MM-DD') AS fecha, tipo, categoria, estado`;
 
-// Listar los movimientos de la persona con sesión
+// Listar los movimientos de la persona con sesión, con búsqueda y filtros opcionales
 app.get('/movimientos', exigirSesion, async (req, res) => {
+  const lectura = leerFiltros(req.query);
+  if (!lectura.ok) {
+    return res.status(400).json({ error: lectura.error });
+  }
+
   const resultado = await pool.query(
     `SELECT ${COLUMNAS_MOVIMIENTO} FROM movimientos
      WHERE usuario_id = $1 ORDER BY fecha DESC, id DESC`,
     [req.usuario.id]
   );
-  res.json({ movimientos: resultado.rows });
+
+  // El total sale de la misma lista filtrada que se devuelve: siempre coinciden
+  const movimientos = filtrarMovimientos(resultado.rows, lectura.filtros, hoyTexto());
+  res.json({ movimientos, totales: calcularTotales(movimientos) });
 });
 
 // Crear un movimiento (siempre nace "pendiente")
@@ -166,6 +184,8 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   const concepto = String(req.body.concepto || '').trim();
   const monto = Number(req.body.monto);
   const fecha = String(req.body.fecha || '');
+  const tipo = req.body.tipo ?? 'gasto';
+  const categoria = req.body.categoria ?? 'otros';
 
   if (!concepto || !fecha) {
     return res.status(400).json({ error: 'Completa todos los campos' });
@@ -176,16 +196,25 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return res.status(400).json({ error: 'Fecha inválida' });
   }
+  if (!TIPOS.includes(tipo)) {
+    return res.status(400).json({ error: 'Tipo inválido' });
+  }
+  if (!CATEGORIAS.includes(categoria)) {
+    return res.status(400).json({ error: 'Categoría inválida' });
+  }
 
-  const control = await controlarLimite(req.usuario.id, fecha, monto);
-  if (!control.ok) {
-    return res.status(422).json({ error: control.error });
+  // Solo los gastos cuentan para el límite mensual (#6); un ingreso no se controla
+  if (tipo === 'gasto') {
+    const control = await controlarLimite(req.usuario.id, fecha, monto);
+    if (!control.ok) {
+      return res.status(422).json({ error: control.error });
+    }
   }
 
   const resultado = await pool.query(
-    `INSERT INTO movimientos (usuario_id, concepto, monto, fecha)
-     VALUES ($1, $2, $3, $4) RETURNING ${COLUMNAS_MOVIMIENTO}`,
-    [req.usuario.id, concepto, monto, fecha]
+    `INSERT INTO movimientos (usuario_id, concepto, monto, fecha, tipo, categoria)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${COLUMNAS_MOVIMIENTO}`,
+    [req.usuario.id, concepto, monto, fecha, tipo, categoria]
   );
   res.status(201).json({ movimiento: resultado.rows[0] });
 });
@@ -218,7 +247,7 @@ app.post('/movimientos/:id/pagar', exigirSesion, async (req, res) => {
   res.json({ movimiento: resultado.rows[0] });
 });
 
-// Editar: si está pagado, el monto no puede cambiar
+// Editar: si está pagado, el monto no puede cambiar. El tipo no se modifica.
 app.put('/movimientos/:id', exigirSesion, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
@@ -228,6 +257,7 @@ app.put('/movimientos/:id', exigirSesion, async (req, res) => {
   const concepto = String(req.body.concepto || '').trim();
   const monto = Math.round(Number(req.body.monto) * 100) / 100;
   const fecha = String(req.body.fecha || '');
+  const categoria = req.body.categoria ?? null; // null = dejar la categoría como está
 
   if (!concepto || !fecha) {
     return res.status(400).json({ error: 'Completa todos los campos' });
@@ -238,30 +268,38 @@ app.put('/movimientos/:id', exigirSesion, async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return res.status(400).json({ error: 'Fecha inválida' });
   }
+  if (categoria !== null && !CATEGORIAS.includes(categoria)) {
+    return res.status(400).json({ error: 'Categoría inválida' });
+  }
 
-  // El monto anterior de este movimiento no se cuenta: se reemplaza por el nuevo
-  const control = await controlarLimite(req.usuario.id, fecha, monto, id);
-  if (!control.ok) {
-    return res.status(422).json({ error: control.error });
+  const actual = await pool.query(
+    'SELECT tipo FROM movimientos WHERE id = $1 AND usuario_id = $2',
+    [id, req.usuario.id]
+  );
+  if (actual.rows.length === 0) {
+    return res.status(404).json({ error: 'Movimiento no encontrado' });
+  }
+
+  // Solo los gastos cuentan para el límite. El monto anterior de este movimiento no se cuenta.
+  if (actual.rows[0].tipo === 'gasto') {
+    const control = await controlarLimite(req.usuario.id, fecha, monto, id);
+    if (!control.ok) {
+      return res.status(422).json({ error: control.error });
+    }
   }
 
   // La restricción vive en el WHERE: si está pagado, el monto debe ser el mismo
   const resultado = await pool.query(
-    `UPDATE movimientos SET concepto = $3, monto = $4, fecha = $5
+    `UPDATE movimientos
+     SET concepto = $3, monto = $4, fecha = $5, categoria = COALESCE($6, categoria)
      WHERE id = $1 AND usuario_id = $2
        AND (estado = 'pendiente' OR monto = $4)
      RETURNING ${COLUMNAS_MOVIMIENTO}`,
-    [id, req.usuario.id, concepto, monto, fecha]
+    [id, req.usuario.id, concepto, monto, fecha, categoria]
   );
 
+  // Como el movimiento existe, no actualizar significa: pagado con otro monto
   if (resultado.rows.length === 0) {
-    const existe = await pool.query(
-      'SELECT 1 FROM movimientos WHERE id = $1 AND usuario_id = $2',
-      [id, req.usuario.id]
-    );
-    if (existe.rows.length === 0) {
-      return res.status(404).json({ error: 'Movimiento no encontrado' });
-    }
     return res.status(409).json({
       error: 'Un movimiento pagado no permite modificar su monto.',
     });
@@ -307,11 +345,11 @@ async function leerLimite(usuarioId, mes) {
   return resultado.rows.length === 0 ? null : resultado.rows[0].monto;
 }
 
-// Todo movimiento cuenta como gasto. idExcluido: el que se está editando
+// Solo los movimientos de tipo gasto cuentan. idExcluido: el que se está editando
 async function gastadoDelMes(usuarioId, mes, idExcluido = 0) {
   const resultado = await pool.query(
     `SELECT COALESCE(SUM(monto), 0)::float8 AS gastado FROM movimientos
-     WHERE usuario_id = $1 AND id <> $3
+     WHERE usuario_id = $1 AND id <> $3 AND tipo = 'gasto'
        AND fecha >= $2::date AND fecha < $2::date + INTERVAL '1 month'`,
     [usuarioId, mes, idExcluido]
   );
