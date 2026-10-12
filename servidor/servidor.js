@@ -3,7 +3,12 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('./conexion');
-const { validarMontoLimite } = require('./limite');
+const {
+  validarMontoLimite,
+  validarLimiteContraGastado,
+  puedeRegistrarGasto,
+  calcularResumen
+} = require('./limite');
 
 const app = express();
 app.use(cors());
@@ -172,6 +177,11 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Fecha inválida' });
   }
 
+  const control = await controlarLimite(req.usuario.id, fecha, monto);
+  if (!control.ok) {
+    return res.status(422).json({ error: control.error });
+  }
+
   const resultado = await pool.query(
     `INSERT INTO movimientos (usuario_id, concepto, monto, fecha)
      VALUES ($1, $2, $3, $4) RETURNING ${COLUMNAS_MOVIMIENTO}`,
@@ -229,6 +239,12 @@ app.put('/movimientos/:id', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Fecha inválida' });
   }
 
+  // El monto anterior de este movimiento no se cuenta: se reemplaza por el nuevo
+  const control = await controlarLimite(req.usuario.id, fecha, monto, id);
+  if (!control.ok) {
+    return res.status(422).json({ error: control.error });
+  }
+
   // La restricción vive en el WHERE: si está pagado, el monto debe ser el mismo
   const resultado = await pool.query(
     `UPDATE movimientos SET concepto = $3, monto = $4, fecha = $5
@@ -271,28 +287,79 @@ app.delete('/movimientos/:id', exigirSesion, async (req, res) => {
   res.json({ mensaje: 'Movimiento eliminado' });
 });
 
-// ---------- Límite mensual (HU-01) ----------
-// null si la persona todavía no definió su límite
-app.get('/limite', exigirSesion, async (req, res) => {
+// ---------- Límite mensual (#9) ----------
+// 'AAAA-MM' → 'AAAA-MM-01'; sin mes, el mes actual; null si el formato no sirve
+function primerDiaDelMes(mes) {
+  if (mes == null) {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-01`;
+  }
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) return null;
+  return `${mes}-01`;
+}
+
+// null si la persona no definió límite para ese mes
+async function leerLimite(usuarioId, mes) {
   const resultado = await pool.query(
-    'SELECT limite_mensual::float8 AS limite FROM usuarios WHERE id = $1',
-    [req.usuario.id]
+    'SELECT monto::float8 AS monto FROM limites_mensuales WHERE usuario_id = $1 AND mes = $2',
+    [usuarioId, mes]
   );
-  res.json({ limite: resultado.rows[0].limite });
+  return resultado.rows.length === 0 ? null : resultado.rows[0].monto;
+}
+
+// Todo movimiento cuenta como gasto. idExcluido: el que se está editando
+async function gastadoDelMes(usuarioId, mes, idExcluido = 0) {
+  const resultado = await pool.query(
+    `SELECT COALESCE(SUM(monto), 0)::float8 AS gastado FROM movimientos
+     WHERE usuario_id = $1 AND id <> $3
+       AND fecha >= $2::date AND fecha < $2::date + INTERVAL '1 month'`,
+    [usuarioId, mes, idExcluido]
+  );
+  return resultado.rows[0].gastado;
+}
+
+// Antes de guardar un gasto: ¿entra en el límite del mes de su fecha?
+async function controlarLimite(usuarioId, fecha, montoNuevo, idExcluido = 0) {
+  const mes = fecha.slice(0, 8) + '01';
+  const limite = await leerLimite(usuarioId, mes);
+  const gastado = await gastadoDelMes(usuarioId, mes, idExcluido);
+  return puedeRegistrarGasto({ limite, gastado, montoNuevo });
+}
+
+app.get('/limite', exigirSesion, async (req, res) => {
+  const mes = primerDiaDelMes(req.query.mes);
+  if (!mes) {
+    return res.status(400).json({ error: 'Mes inválido' });
+  }
+
+  const limite = await leerLimite(req.usuario.id, mes);
+  const gastado = await gastadoDelMes(req.usuario.id, mes);
+  res.json({ mes: mes.slice(0, 7), ...calcularResumen({ limite, gastado }) });
 });
 
 app.put('/limite', exigirSesion, async (req, res) => {
-  const { limite } = req.body || {};
-  const validacion = validarMontoLimite(limite);
+  const { monto, mes: mesPedido } = req.body || {};
+  const mes = primerDiaDelMes(mesPedido);
+  if (!mes) {
+    return res.status(400).json({ error: 'Mes inválido' });
+  }
+  const validacion = validarMontoLimite(monto);
   if (!validacion.ok) {
     return res.status(400).json({ error: validacion.error });
   }
 
-  const resultado = await pool.query(
-    'UPDATE usuarios SET limite_mensual = $2 WHERE id = $1 RETURNING limite_mensual::float8 AS limite',
-    [req.usuario.id, Number(limite)]
+  const gastado = await gastadoDelMes(req.usuario.id, mes);
+  const contraGastado = validarLimiteContraGastado(monto, gastado);
+  if (!contraGastado.ok) {
+    return res.status(400).json({ error: contraGastado.error });
+  }
+
+  await pool.query(
+    `INSERT INTO limites_mensuales (usuario_id, mes, monto) VALUES ($1, $2, $3)
+     ON CONFLICT (usuario_id, mes) DO UPDATE SET monto = EXCLUDED.monto, actualizado_en = NOW()`,
+    [req.usuario.id, mes, Number(monto)]
   );
-  res.json({ limite: resultado.rows[0].limite });
+  res.json({ mes: mes.slice(0, 7), ...calcularResumen({ limite: Number(monto), gastado }) });
 });
 
 // ---------- Manejo de errores ----------
