@@ -1,10 +1,34 @@
 enum EstadoMovimiento { pendiente, pagado }
 
+enum TipoMovimiento { ingreso, gasto }
+
+enum CategoriaMovimiento { comida, transporte, estudio, otros }
+
+// Textos para mostrar en la interfaz
+extension TextoEstado on EstadoMovimiento {
+  String get texto => this == EstadoMovimiento.pagado ? 'Pagado' : 'Pendiente';
+}
+
+extension TextoTipo on TipoMovimiento {
+  String get texto => this == TipoMovimiento.ingreso ? 'Ingreso' : 'Gasto';
+}
+
+extension TextoCategoria on CategoriaMovimiento {
+  String get texto => switch (this) {
+    CategoriaMovimiento.comida => 'Comida',
+    CategoriaMovimiento.transporte => 'Transporte',
+    CategoriaMovimiento.estudio => 'Estudio',
+    CategoriaMovimiento.otros => 'Otros',
+  };
+}
+
 class Movimiento {
   final int id;
   final String concepto;
   final double monto;
   final DateTime fecha;
+  final TipoMovimiento tipo;
+  final CategoriaMovimiento categoria;
   final EstadoMovimiento estado;
 
   // Un movimiento nuevo siempre empieza como pendiente
@@ -13,6 +37,8 @@ class Movimiento {
     required this.concepto,
     required this.monto,
     required this.fecha,
+    this.tipo = TipoMovimiento.gasto,
+    this.categoria = CategoriaMovimiento.otros,
     this.estado = EstadoMovimiento.pendiente,
   });
 
@@ -23,6 +49,8 @@ class Movimiento {
       concepto: json['concepto'] as String,
       monto: (json['monto'] as num).toDouble(),
       fecha: DateTime.parse(json['fecha'] as String),
+      tipo: TipoMovimiento.values.byName((json['tipo'] as String?) ?? 'gasto'),
+      categoria: CategoriaMovimiento.values.byName((json['categoria'] as String?) ?? 'otros'),
       estado: json['estado'] == 'pagado'
           ? EstadoMovimiento.pagado
           : EstadoMovimiento.pendiente,
@@ -39,6 +67,8 @@ class Movimiento {
       concepto: concepto,
       monto: monto,
       fecha: fecha,
+      tipo: tipo,
+      categoria: categoria,
       estado: EstadoMovimiento.pagado,
     );
   }
@@ -50,10 +80,12 @@ class Movimiento {
   bool get montoBloqueado => estado == EstadoMovimiento.pagado;
 
   // Devuelve un movimiento con los datos nuevos. Rechaza cambiar el monto si está pagado.
+  // El tipo no cambia; la categoría solo si se indica una nueva.
   Movimiento editar({
     required String concepto,
     required double monto,
     required DateTime fecha,
+    CategoriaMovimiento? categoria,
   }) {
     final cambiaMonto = (monto - this.monto).abs() >= 0.005;
     if (montoBloqueado && cambiaMonto) {
@@ -64,6 +96,8 @@ class Movimiento {
       concepto: concepto,
       monto: montoBloqueado ? this.monto : monto,
       fecha: fecha,
+      tipo: tipo,
+      categoria: categoria ?? this.categoria,
       estado: estado,
     );
   }
@@ -75,5 +109,12 @@ class Movimiento {
     final dia = f.day.toString().padLeft(2, '0');
     final mes = f.month.toString().padLeft(2, '0');
     return '$dia/$mes/${f.year}';
+  }
+
+  // Fecha como la espera el servidor: AAAA-MM-DD
+  static String fechaParaServidor(DateTime f) {
+    final mes = f.month.toString().padLeft(2, '0');
+    final dia = f.day.toString().padLeft(2, '0');
+    return '${f.year.toString().padLeft(4, '0')}-$mes-$dia';
   }
 }

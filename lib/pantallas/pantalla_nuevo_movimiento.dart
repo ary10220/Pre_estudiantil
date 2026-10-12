@@ -23,6 +23,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   final _monto = TextEditingController();
   final _fechaTexto = TextEditingController();
   DateTime? _fecha;
+  TipoMovimiento _tipo = TipoMovimiento.gasto;
+  CategoriaMovimiento _categoria = CategoriaMovimiento.otros;
   bool _cargando = false;
 
   bool get _editando => widget.movimiento != null;
@@ -37,6 +39,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       _monto.text = m.monto.toStringAsFixed(2);
       _fecha = m.fecha;
       _fechaTexto.text = Movimiento.formatearFecha(m.fecha);
+      _tipo = m.tipo;
+      _categoria = m.categoria;
     }
   }
 
@@ -81,9 +85,15 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     setState(() => _cargando = true);
     try {
       if (_editando) {
-        await ServicioMovimientos.editar(widget.movimiento!, concepto, monto, _fecha!);
+        await ServicioMovimientos.editar(
+          widget.movimiento!,
+          concepto,
+          monto,
+          _fecha!,
+          _categoria,
+        );
       } else {
-        await ServicioMovimientos.crear(concepto, monto, _fecha!);
+        await ServicioMovimientos.crear(concepto, monto, _fecha!, _tipo, _categoria);
       }
       if (!mounted) return;
       mostrarMensaje(context, _editando ? 'Cambios guardados' : 'Movimiento guardado');
@@ -101,6 +111,53 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
+  }
+
+  // Opciones en chips. Si alCambiar es null, quedan deshabilitadas.
+  Widget _selector<T>(
+      String titulo,
+      Map<T, String> opciones,
+      T valor,
+      ValueChanged<T>? alCambiar,
+      ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 8),
+          child: Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colores.grisAzulado,
+            ),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: opciones.entries.map((e) {
+            final elegido = valor == e.key;
+            return ChoiceChip(
+              label: Text(e.value),
+              selected: elegido,
+              showCheckmark: false,
+              selectedColor: Colores.verdeClaro,
+              backgroundColor: Colors.white,
+              labelStyle: TextStyle(
+                color: elegido ? Colores.verdeOscuro : Colores.azulOscuro,
+                fontWeight: elegido ? FontWeight.w700 : FontWeight.w500,
+              ),
+              side: BorderSide(
+                color: elegido ? Colores.verdeOscuro : Colores.verdeClaro,
+              ),
+              onSelected: alCambiar == null ? null : (_) => alCambiar(e.key),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   @override
@@ -131,6 +188,20 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 style: const TextStyle(fontSize: 16, color: Colores.grisAzulado),
               ),
               const SizedBox(height: 32),
+              _selector<TipoMovimiento>(
+                _editando ? 'Tipo (no se puede cambiar)' : 'Tipo',
+                {for (final t in TipoMovimiento.values) t: t.texto},
+                _tipo,
+                _editando ? null : (v) => setState(() => _tipo = v),
+              ),
+              const SizedBox(height: 20),
+              _selector<CategoriaMovimiento>(
+                'Categoría',
+                {for (final c in CategoriaMovimiento.values) c: c.texto},
+                _categoria,
+                    (v) => setState(() => _categoria = v),
+              ),
+              const SizedBox(height: 20),
               CampoTexto(
                 controlador: _concepto,
                 etiqueta: 'Concepto',
