@@ -8,9 +8,7 @@ CREATE TABLE usuarios (
     nombre          VARCHAR(100) NOT NULL,
     correo          VARCHAR(150) NOT NULL UNIQUE,
     contrasena_hash VARCHAR(255) NOT NULL,
-    creado_en       TIMESTAMP NOT NULL DEFAULT NOW(),
-    -- HU-01: vacío hasta que la persona define su límite del mes
-    limite_mensual  NUMERIC(10,2) NULL CHECK (limite_mensual > 0)
+    creado_en       TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Sesiones activas
@@ -41,4 +39,14 @@ CREATE TABLE movimientos (
     estado      VARCHAR(10) NOT NULL DEFAULT 'pendiente'
                 CHECK (estado IN ('pendiente', 'pagado')),
     creado_en   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Límite de gastos: uno por persona y por mes (mes = siempre el día 1)
+CREATE TABLE limites_mensuales (
+    id              SERIAL PRIMARY KEY,
+    usuario_id      INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    mes             DATE NOT NULL,
+    monto           NUMERIC(10,2) NOT NULL CHECK (monto > 0),
+    actualizado_en  TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (usuario_id, mes)
 );
