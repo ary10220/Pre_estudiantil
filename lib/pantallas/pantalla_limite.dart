@@ -21,6 +21,8 @@ class _PantallaLimiteState extends State<PantallaLimite> {
   String? _errorLimite;
   bool _cargando = false;
   ResumenLimite? _resumen;
+  // Lo que devolvió el servidor al guardar; mientras exista se muestra la confirmación
+  ResumenLimite? _guardado;
 
   @override
   void initState() {
@@ -62,10 +64,10 @@ class _PantallaLimiteState extends State<PantallaLimite> {
 
     setState(() => _cargando = true);
     try {
-      await ServicioLimite.guardar(_limite.text);
+      final guardado = await ServicioLimite.guardar(_limite.text);
       if (!mounted) return;
-      mostrarMensaje(context, 'Límite guardado');
-      Navigator.pop(context, true); // true = hay que refrescar la tarjeta
+      // La pantalla no se cierra: la confirmación queda junto al botón
+      setState(() => _guardado = guardado);
     } on SesionExpirada {
       if (!mounted) return;
       _volverAlLogin();
@@ -79,6 +81,29 @@ class _PantallaLimiteState extends State<PantallaLimite> {
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
+  }
+
+  // Confirmación de éxito junto al botón (clase 15, hallazgo 1)
+  Widget _confirmacion(ResumenLimite r) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colores.verdeClaro,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colores.verdeOscuro),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              textoConfirmacionLimite(r),
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.verdeOscuro),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -124,7 +149,11 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                 pista: 'Ej.: 500',
                 tipoTeclado: const TextInputType.numberWithOptions(decimal: true),
                 error: _errorLimite,
-                alCambiar: (_) => setState(() => _errorLimite = null),
+                // Si cambia el monto, se oculta la confirmación y vuelve "Guardar límite"
+                alCambiar: (_) => setState(() {
+                  _errorLimite = null;
+                  _guardado = null;
+                }),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -133,12 +162,22 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                     ? const Center(
                   child: CircularProgressIndicator(color: Colores.verdeOscuro),
                 )
+                    : _guardado != null
+                    ? BotonPildora(
+                  texto: 'Listo',
+                  icono: Icons.arrow_back,
+                  alPresionar: () => Navigator.pop(context, true),
+                )
                     : BotonPildora(
                   texto: 'Guardar límite',
                   icono: Icons.check,
                   alPresionar: _guardar,
                 ),
               ),
+              if (_guardado != null) ...[
+                const SizedBox(height: 16),
+                _confirmacion(_guardado!),
+              ],
               const SizedBox(height: 24),
             ],
           ),
