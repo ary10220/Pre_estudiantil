@@ -20,15 +20,35 @@ double leerLimite(String valor) => double.parse(_normalizar(valor));
 
 String formatearBs(double monto) => 'Bs ${monto.toStringAsFixed(2).replaceAll('.', ',')}';
 
+const List<String> _nombresMeses = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+// 'AAAA-MM' → 'octubre'
+String nombreMes(String mes) => _nombresMeses[int.parse(mes.substring(5, 7)) - 1];
+
+// Confirmación junto al botón al guardar el límite (clase 15, hallazgo 1)
+String textoConfirmacionLimite(ResumenLimite r) =>
+    'Límite guardado: ${formatearBs(r.limite!)} para ${nombreMes(r.mes!)}'
+    ' · Te quedan ${formatearBs(r.restante!)}';
+
 class ResumenLimite {
+  final String? mes;
   final double? limite;
   final double gastado;
   final double? restante;
 
-  const ResumenLimite({required this.limite, required this.gastado, required this.restante});
+  const ResumenLimite({
+    this.mes,
+    required this.limite,
+    required this.gastado,
+    required this.restante,
+  });
 
   factory ResumenLimite.desdeJson(Map<String, dynamic> json) {
     return ResumenLimite(
+      mes: json['mes'] as String?,
       limite: (json['limite'] as num?)?.toDouble(),
       gastado: (json['gastado'] as num).toDouble(),
       restante: (json['restante'] as num?)?.toDouble(),

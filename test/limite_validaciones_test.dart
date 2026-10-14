@@ -36,4 +36,25 @@ void main() {
     expect(sinLimite.tieneLimite, false);
     expect(formatearBs(25.5), 'Bs 25,50');
   });
+
+  // Clase 15 · hallazgo 1: confirmación junto al botón
+  test('confirmación: monto con decimales y coma', () {
+    final r = ResumenLimite.desdeJson(
+        {'mes': '2026-10', 'limite': 500.5, 'gastado': 300, 'restante': 200.5});
+    expect(textoConfirmacionLimite(r),
+        'Límite guardado: Bs 500,50 para octubre · Te quedan Bs 200,50');
+  });
+
+  test('confirmación: nombre del mes en español', () {
+    expect(nombreMes('2026-01'), 'enero');
+    expect(nombreMes('2026-09'), 'septiembre');
+    expect(nombreMes('2026-12'), 'diciembre');
+  });
+
+  test('confirmación: restante en 0', () {
+    final r = ResumenLimite.desdeJson(
+        {'mes': '2026-10', 'limite': 300, 'gastado': 300, 'restante': 0});
+    expect(textoConfirmacionLimite(r),
+        'Límite guardado: Bs 300,00 para octubre · Te quedan Bs 0,00');
+  });
 }

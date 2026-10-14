@@ -134,8 +134,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   }
 
   Future<void> _abrirLimite() async {
-    final guardado = await Navigator.pushNamed(context, Rutas.limite);
-    if (guardado == true) await _cargarMovimientos();
+    // Se recarga siempre: se puede volver con "Listo" o con la flecha atrás
+    await Navigator.pushNamed(context, Rutas.limite);
+    await _cargarMovimientos();
   }
 
   // Editar: abre el mismo formulario con los datos del movimiento
