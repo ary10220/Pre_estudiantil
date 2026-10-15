@@ -268,10 +268,17 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colores.azulOscuro,
         actions: [
-          IconButton(
-            tooltip: 'Límite del mes',
-            icon: const Icon(Icons.savings_outlined, color: Colores.verdeOscuro),
+          // H6.1: ícono + texto visible, sin depender del tooltip
+          TextButton.icon(
             onPressed: _abrirLimite,
+            icon: const Icon(
+              Icons.savings_outlined,
+              color: Colores.verdeOscuro,
+            ),
+            label: const Text(
+              'Límite',
+              style: TextStyle(color: Colores.verdeOscuro),
+            ),
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
