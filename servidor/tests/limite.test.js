@@ -28,7 +28,7 @@ test('permitido: sin límite definido, cualquier gasto pasa', () => {
 
 // ---------- Rechazados ----------
 test('rechazado: límite vacío', () => {
-  assert.deepEqual(validarMontoLimite(''), { ok: false, error: 'Escribí el límite' });
+  assert.deepEqual(validarMontoLimite(''), { ok: false, error: 'Escribe el límite' });
 });
 
 test('rechazado: límite "0"', () => {
@@ -44,7 +44,7 @@ test('rechazado: límite "abc"', () => {
 });
 
 test('rechazado: límite "10.555" (más de 2 decimales)', () => {
-  assert.deepEqual(validarMontoLimite('10.555'), { ok: false, error: 'Usá como máximo 2 decimales' });
+  assert.deepEqual(validarMontoLimite('10.555'), { ok: false, error: 'Usa como máximo 2 decimales' });
 });
 
 test('rechazado: límite menor a lo ya gastado', () => {

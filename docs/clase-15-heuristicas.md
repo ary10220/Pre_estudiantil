@@ -79,13 +79,17 @@ No se eligió por ser el cambio más rápido. Los hallazgos 2 y 3 quedan registr
 - **Antes:** el único aviso aparece abajo, en la pantalla siguiente.
 
   ![](evidencias/clase-15/01-antes-limite-guardado.png)
-- **Después:** Pendiente (captura `evidencias/clase-15/01-despues-limite-guardado.png`).
+- **Después:** la confirmación queda junto al botón, con el monto, el mes y lo que queda, y el botón pasa a **Listo**.
+
+  ![](evidencias/clase-15/01-despues-limite-guardado.png)
 - **Resultado de la comprobación:** Pendiente.
 
 ## 7. Pendientes
 
-- **Hallazgo 2:** el mensaje de bloqueo ofrecería dos salidas, "Cambiar monto" (pone el foco en el campo sin borrar lo escrito) y "Subir límite" (abre la pantalla del límite). Para eso, `ErrorAcceso` tiene que guardar el código HTTP y así distinguir el 422.
-- **Hallazgo 3:** el formulario mostraría "Te quedan Bs Z en octubre" (del mes de la fecha elegida, solo para gastos, sumando el monto anterior al editar) y, mientras se escribe, cuánto quedaría después del gasto, con color de aviso si se pasa.
+Los dos se resolvieron en la evaluación heurística H1–H10 (#18):
+
+- **Hallazgo 2 → #23 (H9.1):** el mensaje de bloqueo ofrecería dos salidas, "Cambiar monto" (pone el foco en el campo sin borrar lo escrito) y "Subir límite" (abre la pantalla del límite). Para eso, `ErrorAcceso` tiene que guardar el código HTTP y así distinguir el 422.
+- **Hallazgo 3 → #19 (H5.1):** el formulario mostraría "Te quedan Bs Z en octubre" (del mes de la fecha elegida, solo para gastos, sumando el monto anterior al editar) y, mientras se escribe, cuánto quedaría después del gasto, con color de aviso si se pasa.
 
 ## 8. Modalidad
 

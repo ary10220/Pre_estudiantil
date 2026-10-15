@@ -1,12 +1,23 @@
+import 'limite.dart';
+
 enum EstadoMovimiento { pendiente, pagado }
 
 enum TipoMovimiento { ingreso, gasto }
 
 enum CategoriaMovimiento { comida, transporte, estudio, otros }
 
-// Textos para mostrar en la interfaz
+// Textos para mostrar en la interfaz (H2.1: el ingreso se cobra, no se paga)
 extension TextoEstado on EstadoMovimiento {
   String get texto => this == EstadoMovimiento.pagado ? 'Pagado' : 'Pendiente';
+
+  // Palabra según el tipo: el gasto se paga, el ingreso se cobra.
+  String textoPara(TipoMovimiento tipo) {
+    final esIngreso = tipo == TipoMovimiento.ingreso;
+    if (this == EstadoMovimiento.pagado) {
+      return esIngreso ? 'Cobrado' : 'Pagado';
+    }
+    return esIngreso ? 'Por cobrar' : 'Pendiente';
+  }
 }
 
 extension TextoTipo on TipoMovimiento {
@@ -57,10 +68,28 @@ class Movimiento {
     );
   }
 
+  bool get esIngreso => tipo == TipoMovimiento.ingreso;
+
+  // Texto del estado según el tipo (H2.1)
+  String get estadoTexto => estado.textoPara(tipo);
+
+  // Texto del botón y del diálogo según el tipo
+  String get accionMarcarTexto =>
+      esIngreso ? 'Marcar como cobrado' : 'Marcar como pagado';
+
+  // Motivo del monto bloqueado según el tipo
+  String get motivoMontoBloqueadoTexto => esIngreso
+      ? 'Un movimiento cobrado no permite modificar su monto.'
+      : motivoMontoBloqueado;
+
   // Transición: pendiente -> pagado. Cualquier otra se rechaza.
+  // El estado interno sigue siendo 'pagado' (lo espera el servidor);
+  // solo cambia la palabra que ve la persona.
   Movimiento marcarComoPagado() {
     if (estado == EstadoMovimiento.pagado) {
-      throw StateError('El movimiento ya está pagado');
+      throw StateError(
+        esIngreso ? 'El movimiento ya está cobrado' : 'El movimiento ya está pagado',
+      );
     }
     return Movimiento(
       id: id,
@@ -102,7 +131,8 @@ class Movimiento {
     );
   }
 
-  String get montoTexto => 'Bs ${monto.toStringAsFixed(2)}';
+  // H4.1: mismo formato con coma que el resto de la app
+  String get montoTexto => formatearBs(monto);
   String get fechaTexto => formatearFecha(fecha);
 
   static String formatearFecha(DateTime f) {
