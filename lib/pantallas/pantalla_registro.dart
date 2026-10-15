@@ -20,6 +20,10 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
   final _contrasena = TextEditingController();
   final _confirmacion = TextEditingController();
   bool _cargando = false;
+  String? _errorNombre;
+  String? _errorCorreo;
+  String? _errorContrasena;
+  String? _errorConfirmacion;
 
   @override
   void dispose() {
@@ -35,21 +39,21 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
     final correo = _correo.text.trim();
     final contrasena = _contrasena.text;
 
-    if (nombre.isEmpty || correo.isEmpty || contrasena.isEmpty) {
-      mostrarMensaje(context, 'Completa todos los campos', esError: true);
-      return;
-    }
-    final errorCorreo = validarCorreo(correo);
-    if (errorCorreo != null) {
-      mostrarMensaje(context, errorCorreo, esError: true);
-      return;
-    }
-    if (contrasena.length < 6) {
-      mostrarMensaje(context, 'La contraseña debe tener mínimo 6 caracteres', esError: true);
-      return;
-    }
-    if (contrasena != _confirmacion.text) {
-      mostrarMensaje(context, 'Las contraseñas no coinciden', esError: true);
+    // Cada error va debajo de su campo, todos a la vez
+    setState(() {
+      _errorNombre = nombre.isEmpty ? mensajeCampoVacio : null;
+      _errorCorreo = correo.isEmpty ? mensajeCampoVacio : validarCorreo(correo);
+      _errorContrasena = contrasena.isEmpty
+          ? mensajeCampoVacio
+          : (contrasena.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null);
+      _errorConfirmacion = _errorContrasena == null && contrasena != _confirmacion.text
+          ? 'Las contraseñas no coinciden'
+          : null;
+    });
+    if (_errorNombre != null ||
+        _errorCorreo != null ||
+        _errorContrasena != null ||
+        _errorConfirmacion != null) {
       return;
     }
 
@@ -104,6 +108,10 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 controlador: _nombre,
                 etiqueta: 'Nombre',
                 icono: Icons.person_outline,
+                error: _errorNombre,
+                alCambiar: (_) {
+                  if (_errorNombre != null) setState(() => _errorNombre = null);
+                },
               ),
               const SizedBox(height: 16),
               CampoTexto(
@@ -111,6 +119,10 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 etiqueta: 'Correo',
                 icono: Icons.mail_outline,
                 tipoTeclado: TextInputType.emailAddress,
+                error: _errorCorreo,
+                alCambiar: (_) {
+                  if (_errorCorreo != null) setState(() => _errorCorreo = null);
+                },
               ),
               const SizedBox(height: 16),
               CampoTexto(
@@ -118,6 +130,10 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 etiqueta: 'Contraseña',
                 icono: Icons.lock_outline,
                 esContrasena: true,
+                error: _errorContrasena,
+                alCambiar: (_) {
+                  if (_errorContrasena != null) setState(() => _errorContrasena = null);
+                },
               ),
               const SizedBox(height: 16),
               CampoTexto(
@@ -125,6 +141,10 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 etiqueta: 'Repetir contraseña',
                 icono: Icons.lock_outline,
                 esContrasena: true,
+                error: _errorConfirmacion,
+                alCambiar: (_) {
+                  if (_errorConfirmacion != null) setState(() => _errorConfirmacion = null);
+                },
               ),
               const SizedBox(height: 32),
               SizedBox(

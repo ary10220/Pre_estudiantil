@@ -17,6 +17,8 @@ class _PantallaLoginState extends State<PantallaLogin> {
   final _correo = TextEditingController();
   final _contrasena = TextEditingController();
   bool _cargando = false;
+  String? _errorCorreo;
+  String? _errorContrasena;
 
   @override
   void dispose() {
@@ -29,10 +31,11 @@ class _PantallaLoginState extends State<PantallaLogin> {
     final correo = _correo.text.trim();
     final contrasena = _contrasena.text;
 
-    if (correo.isEmpty || contrasena.isEmpty) {
-      mostrarMensaje(context, 'Completa todos los campos', esError: true);
-      return;
-    }
+    setState(() {
+      _errorCorreo = correo.isEmpty ? mensajeCampoVacio : null;
+      _errorContrasena = contrasena.isEmpty ? mensajeCampoVacio : null;
+    });
+    if (_errorCorreo != null || _errorContrasena != null) return;
 
     setState(() => _cargando = true);
     try {
@@ -81,6 +84,10 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 etiqueta: 'Correo',
                 icono: Icons.mail_outline,
                 tipoTeclado: TextInputType.emailAddress,
+                error: _errorCorreo,
+                alCambiar: (_) {
+                  if (_errorCorreo != null) setState(() => _errorCorreo = null);
+                },
               ),
               const SizedBox(height: 16),
               CampoTexto(
@@ -88,6 +95,10 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 etiqueta: 'Contraseña',
                 icono: Icons.lock_outline,
                 esContrasena: true,
+                error: _errorContrasena,
+                alCambiar: (_) {
+                  if (_errorContrasena != null) setState(() => _errorContrasena = null);
+                },
               ),
               const SizedBox(height: 32),
               SizedBox(

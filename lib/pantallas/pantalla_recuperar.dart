@@ -21,6 +21,9 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
   // Si es null estamos en el paso 1; si tiene valor, en el paso 2
   String? _codigoRecibido;
   bool _cargando = false;
+  String? _errorCorreo;
+  String? _errorCodigo;
+  String? _errorNueva;
 
   @override
   void dispose() {
@@ -34,7 +37,7 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
   Future<void> _pedirCodigo() async {
     final correo = _correo.text.trim();
     if (correo.isEmpty) {
-      mostrarMensaje(context, 'Escribe tu correo', esError: true);
+      setState(() => _errorCorreo = 'Escribe tu correo');
       return;
     }
 
@@ -56,14 +59,13 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
     final codigo = _codigoEscrito.text.trim();
     final nueva = _nuevaContrasena.text;
 
-    if (codigo.isEmpty || nueva.isEmpty) {
-      mostrarMensaje(context, 'Completa todos los campos', esError: true);
-      return;
-    }
-    if (nueva.length < 6) {
-      mostrarMensaje(context, 'La contraseña debe tener mínimo 6 caracteres', esError: true);
-      return;
-    }
+    setState(() {
+      _errorCodigo = codigo.isEmpty ? mensajeCampoVacio : null;
+      _errorNueva = nueva.isEmpty
+          ? mensajeCampoVacio
+          : (nueva.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null);
+    });
+    if (_errorCodigo != null || _errorNueva != null) return;
 
     setState(() => _cargando = true);
     try {
@@ -121,6 +123,10 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                 icono: Icons.mail_outline,
                 tipoTeclado: TextInputType.emailAddress,
                 habilitado: !enPaso2,
+                error: _errorCorreo,
+                alCambiar: (_) {
+                  if (_errorCorreo != null) setState(() => _errorCorreo = null);
+                },
               ),
               const SizedBox(height: 16),
 
@@ -162,6 +168,10 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                   etiqueta: 'Código',
                   icono: Icons.pin_outlined,
                   tipoTeclado: TextInputType.number,
+                  error: _errorCodigo,
+                  alCambiar: (_) {
+                    if (_errorCodigo != null) setState(() => _errorCodigo = null);
+                  },
                 ),
                 const SizedBox(height: 16),
                 CampoTexto(
@@ -169,6 +179,10 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                   etiqueta: 'Nueva contraseña',
                   icono: Icons.lock_outline,
                   esContrasena: true,
+                  error: _errorNueva,
+                  alCambiar: (_) {
+                    if (_errorNueva != null) setState(() => _errorNueva = null);
+                  },
                 ),
               ],
 

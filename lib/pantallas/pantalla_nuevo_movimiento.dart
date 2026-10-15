@@ -31,6 +31,10 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   // Sin categoría al crear: la persona la elige (H5.3)
   CategoriaMovimiento? _categoria;
   String? _errorCategoria;
+  // Errores debajo de cada campo (H9.2)
+  String? _errorConcepto;
+  String? _errorMonto;
+  String? _errorFecha;
   bool _cargando = false;
   ResumenLimite? _resumen;
   // Mensaje del servidor cuando el gasto supera el límite (422); se queda hasta que la persona actúe
@@ -81,6 +85,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         _fecha = elegida;
         _fechaTexto.text = Movimiento.formatearFecha(elegida);
         _bloqueoLimite = null;
+        _errorFecha = null;
       });
       _cargarResumen();
     }
@@ -201,17 +206,18 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     final concepto = _concepto.text.trim();
     final textoMonto = _monto.text.trim().replaceAll(',', '.');
 
-    if (concepto.isEmpty || textoMonto.isEmpty || _fecha == null) {
-      mostrarMensaje(context, 'Completa todos los campos', esError: true);
-      return;
-    }
-    if (_categoria == null) {
-      setState(() => _errorCategoria = 'Elige una categoría');
-      return;
-    }
     final monto = double.tryParse(textoMonto);
-    if (monto == null || monto <= 0) {
-      mostrarMensaje(context, 'Escribe un monto mayor a 0', esError: true);
+
+    // Cada error va debajo de su campo, todos a la vez
+    setState(() {
+      _errorCategoria = _categoria == null ? 'Elige una categoría' : null;
+      _errorConcepto = concepto.isEmpty ? mensajeCampoVacio : null;
+      _errorMonto = textoMonto.isEmpty
+          ? mensajeCampoVacio
+          : (monto == null || monto <= 0 ? 'Escribe un monto mayor a 0' : null);
+      _errorFecha = _fecha == null ? mensajeCampoVacio : null;
+    });
+    if (_errorCategoria != null || _errorConcepto != null || _errorMonto != null || _errorFecha != null) {
       return;
     }
 
@@ -221,12 +227,12 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         await ServicioMovimientos.editar(
           widget.movimiento!,
           concepto,
-          monto,
+          monto!,
           _fecha!,
           _categoria!,
         );
       } else {
-        await ServicioMovimientos.crear(concepto, monto, _fecha!, _tipo, _categoria!);
+        await ServicioMovimientos.crear(concepto, monto!, _fecha!, _tipo, _categoria!);
       }
       if (!mounted) return;
       mostrarMensaje(context, _editando ? 'Cambios guardados' : 'Movimiento guardado');
@@ -356,6 +362,10 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 controlador: _concepto,
                 etiqueta: 'Concepto',
                 icono: Icons.description_outlined,
+                error: _errorConcepto,
+                alCambiar: (_) {
+                  if (_errorConcepto != null) setState(() => _errorConcepto = null);
+                },
               ),
               const SizedBox(height: 16),
               CampoTexto(
@@ -366,8 +376,12 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 // Si está bloqueado: solo lectura, y al tocarlo se explica el motivo
                 soloLectura: _montoBloqueado,
                 nodoFoco: _nodoMonto,
-                // Recalcula el aviso del límite mientras se escribe; al corregir, se va el bloqueo
-                alCambiar: (_) => setState(() => _bloqueoLimite = null),
+                error: _errorMonto,
+                // Recalcula el aviso del límite mientras se escribe; al corregir, se van el bloqueo y el error
+                alCambiar: (_) => setState(() {
+                  _bloqueoLimite = null;
+                  _errorMonto = null;
+                }),
                 alTocar: _montoBloqueado
                     ? () => mostrarMensaje(
                   context,
@@ -401,6 +415,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 icono: Icons.calendar_today_outlined,
                 soloLectura: true,
                 alTocar: _elegirFecha,
+                error: _errorFecha,
               ),
               const SizedBox(height: 32),
               SizedBox(
