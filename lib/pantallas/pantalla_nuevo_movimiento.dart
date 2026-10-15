@@ -43,6 +43,16 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   bool get _editando => widget.movimiento != null;
   bool get _montoBloqueado => widget.movimiento?.montoBloqueado ?? false;
 
+  // Foto inicial para saber si hay cambios sin guardar (H3.1)
+  String _conceptoInicial = '';
+  String _montoInicial = '';
+  TipoMovimiento _tipoInicial = TipoMovimiento.gasto;
+  CategoriaMovimiento? _categoriaInicial;
+  DateTime? _fechaInicial;
+  // Tras guardar, salir no pregunta; evita programar la salida dos veces
+  bool _salidaPermitida = false;
+  bool _saliendo = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +70,12 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       _fecha = DateTime(hoy.year, hoy.month, hoy.day);
       _fechaTexto.text = Movimiento.formatearFecha(_fecha!);
     }
+    // Se guarda la foto inicial: contra esto se comparan los cambios (H3.1)
+    _conceptoInicial = _concepto.text.trim();
+    _montoInicial = _monto.text.trim();
+    _tipoInicial = _tipo;
+    _categoriaInicial = _categoria;
+    _fechaInicial = _fecha;
     _cargarResumen();
   }
 
@@ -70,6 +86,63 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     _fechaTexto.dispose();
     _nodoMonto.dispose();
     super.dispose();
+  }
+
+  // H3.1: hay algo escrito o cambiado que se perdería al salir
+  bool get _hayCambios {
+    return _concepto.text.trim() != _conceptoInicial ||
+        _monto.text.trim() != _montoInicial ||
+        _tipo != _tipoInicial ||
+        _categoria != _categoriaInicial ||
+        _fecha != _fechaInicial;
+  }
+
+  // Sale del formulario respetando la decisión (conserva el resultado del pop)
+  void _salir([Object? resultado]) {
+    if (_saliendo) return;
+    _saliendo = true;
+    setState(() => _salidaPermitida = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.pop(context, resultado);
+    });
+  }
+
+  // true = puede salir (sin cambios o descarta); false = sigue editando
+  Future<bool> _confirmarSalida() async {
+    if (_salidaPermitida || !_hayCambios) return true;
+    final descartar = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text(
+          '¿Descartar los cambios?',
+          style: TextStyle(color: Colores.azulOscuro),
+        ),
+        content: const Text(
+          'Tienes datos sin guardar. Si sales ahora, se perderán.',
+          style: TextStyle(color: Colores.grisAzulado, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text(
+              'Seguir editando',
+              style: TextStyle(color: Colores.verdeOscuro),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+            ),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    return descartar ?? false;
   }
 
   // Sin restricción: se puede elegir cualquier fecha
@@ -236,6 +309,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       }
       if (!mounted) return;
       mostrarMensaje(context, _editando ? 'Cambios guardados' : 'Movimiento guardado');
+      _salidaPermitida = true; // tras guardar, salir no pregunta (H3.1)
       Navigator.pop(context, true); // true = hay que refrescar la lista
     } on SesionExpirada {
       if (!mounted) return;
@@ -314,11 +388,18 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     // Si hay bloqueo, el recuadro con salidas reemplaza al aviso
     final aviso = _bloqueoLimite != null ? _avisoBloqueo(_bloqueoLimite!) : _avisoLimite();
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colores.azulOscuro,
-      ),
+    // H3.1: la flecha atrás (y el botón del sistema) avisan si hay cambios
+    return PopScope(
+      canPop: _salidaPermitida,
+      onPopInvokedWithResult: (salio, resultado) async {
+        if (salio || !mounted) return;
+        if (await _confirmarSalida()) _salir(resultado);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colores.azulOscuro,
+        ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -442,6 +523,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
               const SizedBox(height: 24),
             ],
           ),
+        ),
         ),
       ),
     );
