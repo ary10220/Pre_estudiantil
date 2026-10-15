@@ -106,6 +106,47 @@ class _PantallaLimiteState extends State<PantallaLimite> {
     );
   }
 
+  // Las reglas del límite, antes de que la persona las descubra con un bloqueo (H10.1)
+  Widget _comoFunciona() {
+    const reglas = [
+      'Si un gasto supera el límite, no se guarda.',
+      'Solo cuentan los gastos; los ingresos no.',
+      'Es el límite de este mes y no puede ser menor a lo que ya gastaste.',
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: Colores.verdeOscuro),
+              SizedBox(width: 8),
+              Text(
+                'Cómo funciona',
+                style: TextStyle(fontWeight: FontWeight.w700, color: Colores.azulOscuro),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final regla in reglas)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '• $regla',
+                style: const TextStyle(color: Colores.grisAzulado, height: 1.4),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,6 +182,8 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                   style: const TextStyle(fontSize: 16, color: Colores.grisAzulado),
                 ),
               ],
+              const SizedBox(height: 16),
+              _comoFunciona(),
               const SizedBox(height: 32),
               CampoTexto(
                 controlador: _limite,
