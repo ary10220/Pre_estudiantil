@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/limite.dart';
@@ -24,6 +25,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   final _concepto = TextEditingController();
   final _monto = TextEditingController();
   final _fechaTexto = TextEditingController();
+  final _nodoMonto = FocusNode();
   DateTime? _fecha;
   TipoMovimiento _tipo = TipoMovimiento.gasto;
   // Sin categoría al crear: la persona la elige (H5.3)
@@ -31,6 +33,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   String? _errorCategoria;
   bool _cargando = false;
   ResumenLimite? _resumen;
+  // Mensaje del servidor cuando el gasto supera el límite (422); se queda hasta que la persona actúe
+  String? _bloqueoLimite;
 
   bool get _editando => widget.movimiento != null;
   bool get _montoBloqueado => widget.movimiento?.montoBloqueado ?? false;
@@ -60,6 +64,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     _concepto.dispose();
     _monto.dispose();
     _fechaTexto.dispose();
+    _nodoMonto.dispose();
     super.dispose();
   }
 
@@ -75,6 +80,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       setState(() {
         _fecha = elegida;
         _fechaTexto.text = Movimiento.formatearFecha(elegida);
+        _bloqueoLimite = null;
       });
       _cargarResumen();
     }
@@ -92,6 +98,62 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     } on ErrorAcceso {
       // Sin el aviso igual se puede guardar: el servidor controla el límite
     }
+  }
+
+  // Salida 1 del bloqueo: corregir el monto sin borrar lo escrito
+  void _cambiarMonto() {
+    // Si el campo ya tenía el foco, solo falta volver a abrir el teclado
+    if (_nodoMonto.hasFocus) {
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    } else {
+      _nodoMonto.requestFocus();
+    }
+    _monto.selection = TextSelection(baseOffset: 0, extentOffset: _monto.text.length);
+  }
+
+  // Salida 2 del bloqueo: subir el límite y volver con el restante actualizado
+  Future<void> _subirLimite() async {
+    await Navigator.pushNamed(context, Rutas.limite);
+    if (!mounted) return;
+    setState(() => _bloqueoLimite = null);
+    await _cargarResumen();
+  }
+
+  // Bloqueo por límite con sus dos salidas (H9.1)
+  Widget _avisoBloqueo(String mensaje) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colores.rojo),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            mensaje,
+            style: const TextStyle(color: Colores.rojo, fontWeight: FontWeight.w600, height: 1.4),
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: _cambiarMonto,
+                icon: const Icon(Icons.edit_outlined, color: Colores.verdeOscuro),
+                label: const Text('Cambiar monto', style: TextStyle(color: Colores.verdeOscuro)),
+              ),
+              TextButton.icon(
+                onPressed: _subirLimite,
+                icon: const Icon(Icons.savings_outlined, color: Colores.verdeOscuro),
+                label: const Text('Subir límite', style: TextStyle(color: Colores.verdeOscuro)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   // Debajo del monto: cuánto queda del límite y cuánto quedaría con este gasto (H5.1)
@@ -174,7 +236,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
     } on ErrorAcceso catch (e) {
       if (!mounted) return;
-      mostrarMensaje(context, e.mensaje, esError: true);
+      if (e.codigo == 422) {
+        setState(() => _bloqueoLimite = e.mensaje);
+      } else {
+        mostrarMensaje(context, e.mensaje, esError: true);
+      }
     } on StateError catch (e) {
       // Regla del modelo (por ejemplo, monto bloqueado)
       if (!mounted) return;
@@ -239,7 +305,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
 
   @override
   Widget build(BuildContext context) {
-    final aviso = _avisoLimite();
+    // Si hay bloqueo, el recuadro con salidas reemplaza al aviso
+    final aviso = _bloqueoLimite != null ? _avisoBloqueo(_bloqueoLimite!) : _avisoLimite();
 
     return Scaffold(
       appBar: AppBar(
@@ -298,8 +365,9 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 tipoTeclado: const TextInputType.numberWithOptions(decimal: true),
                 // Si está bloqueado: solo lectura, y al tocarlo se explica el motivo
                 soloLectura: _montoBloqueado,
-                // Recalcula el aviso del límite mientras se escribe
-                alCambiar: (_) => setState(() {}),
+                nodoFoco: _nodoMonto,
+                // Recalcula el aviso del límite mientras se escribe; al corregir, se va el bloqueo
+                alCambiar: (_) => setState(() => _bloqueoLimite = null),
                 alTocar: _montoBloqueado
                     ? () => mostrarMensaje(
                   context,

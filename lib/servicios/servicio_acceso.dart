@@ -7,7 +7,9 @@ import '../configuracion/constantes.dart';
 // Error con un mensaje listo para mostrar al usuario
 class ErrorAcceso implements Exception {
   final String mensaje;
-  ErrorAcceso(this.mensaje);
+  // Código HTTP de la respuesta (null si ni siquiera hubo conexión). 422 = gasto bloqueado por el límite
+  final int? codigo;
+  ErrorAcceso(this.mensaje, [this.codigo]);
 }
 
 class ServicioAcceso {
@@ -46,7 +48,7 @@ class ServicioAcceso {
   static Map<String, dynamic> leer(http.Response respuesta) {
     final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
     if (respuesta.statusCode >= 400) {
-      throw ErrorAcceso(cuerpo['error'] ?? 'Error desconocido');
+      throw ErrorAcceso(cuerpo['error'] ?? 'Error desconocido', respuesta.statusCode);
     }
     return cuerpo;
   }

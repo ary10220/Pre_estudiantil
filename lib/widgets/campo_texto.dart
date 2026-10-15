@@ -14,6 +14,7 @@ class CampoTexto extends StatefulWidget {
   final String? error;
   final ValueChanged<String>? alCambiar;
   final String? pista;
+  final FocusNode? nodoFoco;
 
   const CampoTexto({
     super.key,
@@ -28,6 +29,7 @@ class CampoTexto extends StatefulWidget {
     this.error,
     this.alCambiar,
     this.pista,
+    this.nodoFoco,
   });
 
   @override
@@ -48,6 +50,7 @@ class _CampoTextoState extends State<CampoTexto> {
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controlador,
+      focusNode: widget.nodoFoco,
       enabled: widget.habilitado,
       readOnly: widget.soloLectura,
       onTap: widget.alTocar,
