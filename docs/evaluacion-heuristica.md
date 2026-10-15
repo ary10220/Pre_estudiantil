@@ -13,11 +13,11 @@
 | H | Heurística | Estado | Sub-issues |
 |---|---|---|---|
 | H1 | Visibilidad del estado del sistema | Cumple | — |
-| H2 | Relación entre el sistema y el mundo real | Falla · corrección pendiente | #27, #28, #29 |
-| H3 | Control y libertad del usuario | Falla · corrección pendiente | #30, #31, #32 |
-| H4 | Consistencia y estándares | Falla · corrección pendiente | #33, #34, #35, #36 |
+| H2 | Relación entre el sistema y el mundo real | Corregida | #27, #28, #29 |
+| H3 | Control y libertad del usuario | Corregida | #30, #31, #32 |
+| H4 | Consistencia y estándares | Corregida | #33, #34, #35, #36 |
 | H5 | Prevención de errores | Corregida | #19, #20, #21 |
-| H6 | Reconocer antes que recordar | Falla · corrección pendiente | #37 |
+| H6 | Reconocer antes que recordar | Corregida | #37 |
 | H7 | Flexibilidad y eficiencia de uso | Corregida | #22 |
 | H8 | Diseño estético y minimalista | Cumple | — |
 | H9 | Ayudar a reconocer, diagnosticar y recuperarse de errores | Corregida | #23, #24, #25 |
@@ -40,41 +40,44 @@
 
 | Campo | Registro |
 |---|---|
-| Estado | **Falla** · corrección pendiente (#27, #28, #29) |
+| Estado | **Corregida** (#27, #28, #29) |
 | Pantalla o flujo | Nuevo movimiento (tipo Ingreso, Fecha, Monto) · Mis movimientos (tarjeta de un ingreso) · Filtros → Rango de fechas |
-| Explicación | La app usa palabras y símbolos que no corresponden a la realidad de la persona: un ingreso se "paga", el calendario está en inglés y el monto en bolivianos tiene el ícono del dólar. |
-| Captura | `antes/h2-ingreso-se-guarda-como-pendiente.png` · `antes/h2-h4-calendario-en-ingles.png` · `antes/h5-h6-h7-formulario-nuevo-vacio.png` |
-| Referencia al código | `lib/pantallas/pantalla_nuevo_movimiento.dart:339` (subtítulo "Se guardará como pendiente"), `:374` (`Icons.attach_money`), `:77` (calendario) · `lib/pantallas/pantalla_movimientos.dart:538` (chip de estado), `:563` ("Marcar como pagado") · `lib/modelos/movimiento.dart:9` · `lib/main.dart:14` (sin `locale` ni `localizationsDelegates`) · `lib/widgets/hoja_filtros.dart:73` |
+| Explicación | **Antes:** un ingreso se "pagaba", el calendario estaba en inglés y el monto en bolivianos tenía el ícono del dólar. **Ahora:** el ingreso muestra "Por cobrar" / "Cobrado" y "Marcar como cobrado" (el gasto sigue con "Pendiente" / "Pagado"); los dos calendarios están en español ("Seleccionar fecha", "jue, 15 oct", "Cancelar" / "ACEPTAR"); el campo Monto (Bs) usa un ícono neutro de dinero. |
+| Captura | **Antes:** `antes/h2-ingreso-se-guarda-como-pendiente.png` · `antes/h2-h4-calendario-en-ingles.png` · `antes/h5-h6-h7-formulario-nuevo-vacio.png` — **Después:** `despues/h2-1-ingreso-por-cobrar.png` · `despues/h2-1-ingreso-cobrado.png` · `despues/h2-2-calendario-nuevo-espanol.png` · `despues/h2-2-calendario-filtros-espanol.png` · `despues/h2-3-monto-sin-dolar.png` |
+| Referencia al código | `lib/modelos/movimiento.dart:14` (`textoPara`), `:74` (`estadoTexto`), `:77` (`accionMarcarTexto`) · `lib/pantallas/pantalla_movimientos.dart:192` (diálogo según tipo), `:558` (chip), `:583` (botón) · `lib/pantallas/pantalla_nuevo_movimiento.dart:423` (subtítulo "por cobrar"), `:460` (`Icons.payments_outlined`), `:77` (calendario) · `lib/main.dart:20-25` (`locale: es`, `localizationsDelegates`) · `pubspec.yaml` (`flutter_localizations`) · `lib/widgets/hoja_filtros.dart:73` (hereda el locale) |
 | Problema y severidad | **2.1** Un ingreso se guarda "como pendiente" y tiene "Marcar como pagado": un sueldo o una beca no se pagan, se cobran · **2 Menor** |
 | | **2.2** El calendario dice "Select date", "Cancel", "OK" y muestra los días en inglés · **2 Menor** |
 | | **2.3** El campo "Monto (Bs)" usa el ícono `$` · **1 Cosmético** |
+| Cómo se comprobó la corrección | La tarjeta de Beca Mensual (ingreso) dice "Por cobrar" con "Marcar como cobrado", y un ingreso de prueba cobrado muestra el chip verde "Cobrado" sin botón. Los calendarios de Nuevo movimiento y de Filtros → Desde se abrieron en el emulador y están en español. El campo Monto (Bs) ya no muestra `$`. |
 
 ### H3 · Control y libertad del usuario
 
 | Campo | Registro |
 |---|---|
-| Estado | **Falla** · corrección pendiente (#30, #31, #32) |
+| Estado | **Corregida** (#30, #31, #32) |
 | Pantalla o flujo | Nuevo/Editar movimiento → flecha atrás · Recuperar contraseña → paso 2 · Mis movimientos → Cerrar sesión |
-| Explicación | Hay acciones que la persona no puede deshacer o corregir sin empezar de nuevo. Eliminar y marcar como pagado sí piden confirmación, y los filtros se pueden quitar uno por uno o todos juntos. |
-| Captura | `antes/h5-h6-formulario-lleno-sin-restante.png` → `antes/h3-atras-descarta-formulario-sin-aviso.png` · `antes/h3-recuperar-paso2-correo-bloqueado.png` · `antes/h3-h6-inicio-tras-cerrar-sesion-sin-confirmar.png` · lo que sí cumple: `antes/h3-h5-confirmar-eliminar.png`, `antes/h3-confirmar-pagado-irreversible.png` |
-| Referencia al código | `lib/pantallas/pantalla_nuevo_movimiento.dart:317` (Scaffold sin `PopScope`) · `lib/pantallas/pantalla_recuperar.dart:125` (`habilitado: !enPaso2`) · `lib/pantallas/pantalla_movimientos.dart:238-242`, `:265` (cerrar sesión), `:154-188` (`_pedirConfirmacion`) |
+| Explicación | **Antes:** la flecha atrás borraba el formulario sin avisar, el correo del paso 2 no se podía corregir y cerrar sesión era de un solo toque. **Ahora:** con cambios sin guardar aparece "¿Descartar los cambios?" ("Seguir editando" conserva lo escrito, "Descartar" cierra; sin cambios vuelve directo); el paso 2 tiene "Cambiar correo" que vuelve al paso 1 conservando lo escrito; cerrar sesión pide "¿Cerrar sesión?" con "Cancelar" y "Cerrar sesión". Eliminar y marcar como pagado/cobrado ya pedían confirmación, y los filtros se quitan uno por uno o todos juntos. |
+| Captura | **Antes:** `antes/h3-atras-descarta-formulario-sin-aviso.png` · `antes/h3-recuperar-paso2-correo-bloqueado.png` · `antes/h3-h6-inicio-tras-cerrar-sesion-sin-confirmar.png` · lo que ya cumplía: `antes/h3-h5-confirmar-eliminar.png`, `antes/h3-confirmar-pagado-irreversible.png` — **Después:** `despues/h3-1-pregunta-descartar.png` · `despues/h3-2-paso2-cambiar-correo.png` · `despues/h3-3-pregunta-cerrar-sesion.png` |
+| Referencia al código | `lib/pantallas/pantalla_nuevo_movimiento.dart:92` (`_hayCambios`), `:111` (`_confirmarSalida`), `:392` (`PopScope`), `:312` (tras guardar no pregunta) · `lib/pantallas/pantalla_recuperar.dart:58` (`_cambiarCorreo`), `:145-147` (botón) · `lib/pantallas/pantalla_movimientos.dart:243` (cerrar sesión con `_pedirConfirmacion`) |
 | Problema y severidad | **3.1** La flecha atrás borra un formulario lleno sin preguntar · **2 Menor** |
 | | **3.2** En Recuperar, paso 2, el correo queda bloqueado y no se puede corregir · **2 Menor** |
 | | **3.3** "Cerrar sesión" actúa con un solo toque, al lado del ícono del límite · **1 Cosmético** |
+| Cómo se comprobó la corrección | Con texto escrito en Concepto, la flecha atrás mostró "¿Descartar los cambios?" con "Seguir editando" y "Descartar". En Recuperar se pidió un código para prueba@correo.com y apareció "Cambiar correo" bajo el campo. Al tocar el ícono de salir apareció "¿Cerrar sesión?" con "Cancelar" y "Cerrar sesión". |
 
 ### H4 · Consistencia y estándares
 
 | Campo | Registro |
 |---|---|
-| Estado | **Falla** · corrección pendiente (#33, #34, #35, #36) |
+| Estado | **Corregida** (#33, #34, #35, #36) |
 | Pantalla o flujo | Mis movimientos (tarjeta y totales) · Editar movimiento · Límite del mes · botones de toda la app |
-| Explicación | Una misma cosa se muestra de formas distintas: el monto con punto o con coma, el gasto en verde o en rojo, el trato de "vos" o de "tú", y flechas en botones que no avanzan. |
-| Captura | `antes/h4-h8-lista-formato-y-color-monto.png` · `antes/h4-limite-vacio-voseo-escribi.png` · `antes/h2-h4-h10-pantalla-limite.png` · `antes/h1-limite-confirmacion-ya-corregida.png` (botón "Listo") |
-| Referencia al código | `lib/modelos/movimiento.dart:105` (`montoTexto` con punto) frente a `lib/modelos/limite.dart:21` (`formatearBs` con coma) · `lib/pantallas/pantalla_movimientos.dart:514-518` (monto siempre verde) frente a `:391` (gastos en rojo) · `lib/pantallas/pantalla_limite.dart:174` · `lib/modelos/limite.dart:2`, `:4` · `servidor/limite.js:13`, `:19` · `lib/widgets/boton_pildora.dart:49` · `lib/pantallas/pantalla_limite.dart:211` |
+| Explicación | **Antes:** el monto iba con punto o con coma según la pantalla, el gasto salía en verde en la tarjeta y en rojo en los totales, el límite trataba de "vos" y "Listo" mostraba "←" y "→" a la vez. **Ahora:** todos los montos usan `formatearBs` (coma); el monto es verde en ingresos y rojo en gastos, igual que los totales; el límite trata de "tú" en la app y en el servidor; "Listo" lleva ✓ a la izquierda y la → de la derecha, como los demás botones. |
+| Captura | **Antes:** `antes/h4-h8-lista-formato-y-color-monto.png` · `antes/h4-limite-vacio-voseo-escribi.png` · `antes/h2-h4-h10-pantalla-limite.png` · `antes/h1-limite-confirmacion-ya-corregida.png` (botón "Listo") — **Después:** `despues/h4-1-formato-bs-unico.png` · `despues/h4-2-monto-por-tipo.png` · `despues/h4-3-limite-tuteo.png` · `despues/h4-4-listo-una-flecha.png` |
+| Referencia al código | `lib/modelos/movimiento.dart:1` (usa `formatearBs`), `:135` (`montoTexto`) · `lib/pantallas/pantalla_movimientos.dart:533-538` (color según tipo) · `lib/modelos/limite.dart:2`, `:4` ("Escribe", "Usa") · `lib/pantallas/pantalla_limite.dart:174` ("quieres"), `:213` (`Icons.check`) · `servidor/limite.js:13`, `:19` · pruebas: `test/limite_validaciones_test.dart`, `servidor/tests/limite.test.js` |
 | Problema y severidad | **4.1** La tarjeta dice "Bs 300.00" y los totales "Bs 300,00" · **2 Menor** |
 | | **4.2** El monto de un gasto sale en verde, pero en los totales los gastos van en rojo · **2 Menor** |
 | | **4.3** Solo la pantalla del límite usa voseo ("querés", "Escribí", "Usá") · **1 Cosmético** |
 | | **4.4** Todos los botones llevan "→", y "Listo" muestra "←" y "→" a la vez · **1 Cosmético** |
+| Cómo se comprobó la corrección | La lista muestra "Bs 10,00" y "Bs 500,00" con coma en tarjetas y totales; el gasto en rojo y el ingreso en verde. La pantalla del límite dice "Cuánto quieres…" y el error "Escribe el límite" (el servidor responde lo mismo). Tras guardar, el botón es "✓ Listo →". `flutter test` 36/36 y `npm test` 28/28 pasan. |
 
 ### H5 · Prevención de errores
 
@@ -94,12 +97,13 @@
 
 | Campo | Registro |
 |---|---|
-| Estado | **Falla** · corrección pendiente (#37) |
+| Estado | **Corregida** (#37) |
 | Pantalla o flujo | Mis movimientos → barra superior |
-| Explicación | El acceso al límite (🐷) y el cierre de sesión (⏻) son solo íconos. Su nombre aparece únicamente si se mantiene presionado el ícono, así que la persona tiene que recordar qué hace cada uno. |
-| Captura | `antes/h6-iconos-sin-texto-solo-tooltip.png` |
-| Referencia al código | `lib/pantallas/pantalla_movimientos.dart:260`, `:265` (solo `tooltip`) |
+| Explicación | **Antes:** el acceso al límite (🐷) era solo un ícono y su nombre aparecía únicamente al mantenerlo presionado. **Ahora:** la barra muestra "🐷 Límite" con ícono y texto, sin depender del tooltip. El cierre de sesión sigue con su ícono, pero desde #32 pide "¿Cerrar sesión?" antes de salir. |
+| Captura | **Antes:** `antes/h6-iconos-sin-texto-solo-tooltip.png` — **Después:** `despues/h6-1-acceso-limite-con-texto.png` |
+| Referencia al código | `lib/pantallas/pantalla_movimientos.dart:272` (`TextButton.icon` "Límite") |
 | Problema y severidad | **6.1** 🐷 (Límite del mes) y ⏻ (Cerrar sesión) no tienen texto visible · **2 Menor** |
+| Cómo se comprobó la corrección | La barra superior muestra "Mis movimientos", "🐷 Límite" y el ícono de salir en el emulador, sin recortes. |
 
 ### H7 · Flexibilidad y eficiencia de uso
 
