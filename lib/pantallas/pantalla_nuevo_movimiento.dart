@@ -375,7 +375,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
               CampoTexto(
                 controlador: _monto,
                 etiqueta: 'Monto (Bs)',
-                icono: _montoBloqueado ? Icons.lock_outline : Icons.attach_money,
+                // H2.3: ícono neutro de dinero; el $ sugería dólares y la app usa Bs
+                icono: _montoBloqueado ? Icons.lock_outline : Icons.payments_outlined,
                 tipoTeclado: const TextInputType.numberWithOptions(decimal: true),
                 // Si está bloqueado: solo lectura, y al tocarlo se explica el motivo
                 soloLectura: _montoBloqueado,
