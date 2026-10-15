@@ -46,6 +46,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       _fechaTexto.text = Movimiento.formatearFecha(m.fecha);
       _tipo = m.tipo;
       _categoria = m.categoria;
+    } else {
+      // Casi siempre se anota lo de hoy: la fecha empieza en hoy y se puede cambiar (H7.1)
+      final hoy = DateTime.now();
+      _fecha = DateTime(hoy.year, hoy.month, hoy.day);
+      _fechaTexto.text = Movimiento.formatearFecha(_fecha!);
     }
     _cargarResumen();
   }
