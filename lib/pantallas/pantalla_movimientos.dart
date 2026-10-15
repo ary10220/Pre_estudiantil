@@ -239,7 +239,15 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     }
   }
 
+  // H3.3: un toque accidental ya no saca a la persona de su cuenta
   Future<void> _cerrarSesion() async {
+    final confirmado = await _pedirConfirmacion(
+      titulo: '¿Cerrar sesión?',
+      mensaje:
+          '¿Deseas cerrar tu sesión? Tendrás que iniciar sesión de nuevo para entrar.',
+      textoConfirmar: 'Cerrar sesión',
+    );
+    if (!confirmado || !mounted) return;
     await ServicioAcceso.cerrarSesion();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, Rutas.inicio, (ruta) => false);
