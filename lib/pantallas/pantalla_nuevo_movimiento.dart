@@ -26,7 +26,9 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   final _fechaTexto = TextEditingController();
   DateTime? _fecha;
   TipoMovimiento _tipo = TipoMovimiento.gasto;
-  CategoriaMovimiento _categoria = CategoriaMovimiento.otros;
+  // Sin categoría al crear: la persona la elige (H5.3)
+  CategoriaMovimiento? _categoria;
+  String? _errorCategoria;
   bool _cargando = false;
   ResumenLimite? _resumen;
 
@@ -136,6 +138,10 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       mostrarMensaje(context, 'Completa todos los campos', esError: true);
       return;
     }
+    if (_categoria == null) {
+      setState(() => _errorCategoria = 'Elige una categoría');
+      return;
+    }
     final monto = double.tryParse(textoMonto);
     if (monto == null || monto <= 0) {
       mostrarMensaje(context, 'Escribe un monto mayor a 0', esError: true);
@@ -150,10 +156,10 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
           concepto,
           monto,
           _fecha!,
-          _categoria,
+          _categoria!,
         );
       } else {
-        await ServicioMovimientos.crear(concepto, monto, _fecha!, _tipo, _categoria);
+        await ServicioMovimientos.crear(concepto, monto, _fecha!, _tipo, _categoria!);
       }
       if (!mounted) return;
       mostrarMensaje(context, _editando ? 'Cambios guardados' : 'Movimiento guardado');
@@ -173,13 +179,14 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     }
   }
 
-  // Opciones en chips. Si alCambiar es null, quedan deshabilitadas.
+  // Opciones en chips. Si alCambiar es null, quedan deshabilitadas. valor null = ninguna elegida.
   Widget _selector<T>(
       String titulo,
       Map<T, String> opciones,
-      T valor,
-      ValueChanged<T>? alCambiar,
-      ) {
+      T? valor,
+      ValueChanged<T>? alCambiar, {
+        String? error,
+      }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -216,6 +223,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
             );
           }).toList(),
         ),
+        if (error != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 8),
+            child: Text(error, style: const TextStyle(fontSize: 13, color: Colores.rojo)),
+          ),
       ],
     );
   }
@@ -261,7 +273,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 'Categoría',
                 {for (final c in CategoriaMovimiento.values) c: c.texto},
                 _categoria,
-                    (v) => setState(() => _categoria = v),
+                    (v) => setState(() {
+                  _categoria = v;
+                  _errorCategoria = null;
+                }),
+                error: _errorCategoria,
               ),
               const SizedBox(height: 20),
               CampoTexto(
