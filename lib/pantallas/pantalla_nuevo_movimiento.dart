@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
+import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
+import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/boton_pildora.dart';
 import '../widgets/campo_texto.dart';
@@ -26,6 +28,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   TipoMovimiento _tipo = TipoMovimiento.gasto;
   CategoriaMovimiento _categoria = CategoriaMovimiento.otros;
   bool _cargando = false;
+  ResumenLimite? _resumen;
 
   bool get _editando => widget.movimiento != null;
   bool get _montoBloqueado => widget.movimiento?.montoBloqueado ?? false;
@@ -42,6 +45,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
       _tipo = m.tipo;
       _categoria = m.categoria;
     }
+    _cargarResumen();
   }
 
   @override
@@ -65,7 +69,63 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         _fecha = elegida;
         _fechaTexto.text = Movimiento.formatearFecha(elegida);
       });
+      _cargarResumen();
     }
+  }
+
+  // Límite del mes de la fecha elegida (sin fecha, el mes actual)
+  Future<void> _cargarResumen() async {
+    final mes = _fecha == null ? null : Movimiento.fechaParaServidor(_fecha!).substring(0, 7);
+    try {
+      final resumen = await ServicioLimite.leer(mes);
+      if (!mounted) return;
+      setState(() => _resumen = resumen);
+    } on SesionExpirada {
+      // Se vuelve al login al guardar
+    } on ErrorAcceso {
+      // Sin el aviso igual se puede guardar: el servidor controla el límite
+    }
+  }
+
+  // Debajo del monto: cuánto queda del límite y cuánto quedaría con este gasto (H5.1)
+  Widget? _avisoLimite() {
+    final r = _resumen;
+    if (_tipo != TipoMovimiento.gasto || _montoBloqueado || r == null || !r.tieneLimite) {
+      return null;
+    }
+    // Al editar, el monto anterior se descuenta solo si es del mismo mes
+    final original = widget.movimiento;
+    final montoAnterior =
+        original != null && Movimiento.fechaParaServidor(original.fecha).startsWith(r.mes!)
+            ? original.monto
+            : 0.0;
+    final aviso = avisoGasto(
+      r,
+      double.tryParse(_monto.text.trim().replaceAll(',', '.')),
+      montoAnterior: montoAnterior,
+    );
+    final color = aviso.seExcede ? Colores.rojo : Colores.grisAzulado;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.savings_outlined, size: 16, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              aviso.texto,
+              style: TextStyle(
+                fontSize: 13,
+                color: color,
+                fontWeight: aviso.seExcede ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _guardar() async {
@@ -162,6 +222,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
 
   @override
   Widget build(BuildContext context) {
+    final aviso = _avisoLimite();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -215,6 +277,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 tipoTeclado: const TextInputType.numberWithOptions(decimal: true),
                 // Si está bloqueado: solo lectura, y al tocarlo se explica el motivo
                 soloLectura: _montoBloqueado,
+                // Recalcula el aviso del límite mientras se escribe
+                alCambiar: (_) => setState(() {}),
                 alTocar: _montoBloqueado
                     ? () => mostrarMensaje(
                   context,
@@ -240,6 +304,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                     ],
                   ),
                 ),
+              ?aviso,
               const SizedBox(height: 16),
               CampoTexto(
                 controlador: _fechaTexto,

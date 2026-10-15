@@ -33,6 +33,26 @@ String textoConfirmacionLimite(ResumenLimite r) =>
     'Límite guardado: ${formatearBs(r.limite!)} para ${nombreMes(r.mes!)}'
     ' · Te quedan ${formatearBs(r.restante!)}';
 
+// Aviso debajo del monto de un gasto (H5.1, #19)
+class AvisoGasto {
+  final String texto;
+  final bool seExcede;
+  const AvisoGasto(this.texto, this.seExcede);
+}
+
+// montoAnterior: al editar un gasto del mismo mes, su monto vuelve a estar disponible
+AvisoGasto avisoGasto(ResumenLimite r, double? monto, {double montoAnterior = 0}) {
+  final disponible = (r.restante! * 100).round() + (montoAnterior * 100).round();
+  final queda = 'Te quedan ${formatearBs(disponible / 100)} en ${nombreMes(r.mes!)}.';
+  if (monto == null || monto <= 0) return AvisoGasto(queda, false);
+
+  final despues = disponible - (monto * 100).round();
+  if (despues < 0) {
+    return AvisoGasto('$queda Con este gasto te pasarías por ${formatearBs(-despues / 100)}.', true);
+  }
+  return AvisoGasto('$queda Con este gasto te quedarían ${formatearBs(despues / 100)}.', false);
+}
+
 class ResumenLimite {
   final String? mes;
   final double? limite;

@@ -7,13 +7,14 @@ class ServicioLimite {
   static Future<Map<String, dynamic>> _pedir(
       String metodo, {
         Map<String, dynamic>? datos,
+        String ruta = '/limite',
       }) async {
     final token = await ServicioAcceso.obtenerToken();
     if (token == null) throw SesionExpirada();
 
     final respuesta = await ServicioAcceso.llamar(
       metodo,
-      '/limite',
+      ruta,
       datos: datos,
       token: token,
     );
@@ -21,9 +22,9 @@ class ServicioLimite {
     return ServicioAcceso.leer(respuesta);
   }
 
-  // Límite, gastado y restante del mes actual (limite null si no lo definió)
-  static Future<ResumenLimite> leer() async {
-    final datos = await _pedir('GET');
+  // Límite, gastado y restante del mes (AAAA-MM; sin mes, el actual). limite null si no lo definió
+  static Future<ResumenLimite> leer([String? mes]) async {
+    final datos = await _pedir('GET', ruta: mes == null ? '/limite' : '/limite?mes=$mes');
     return ResumenLimite.desdeJson(datos);
   }
 
