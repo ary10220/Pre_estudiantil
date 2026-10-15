@@ -188,9 +188,13 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   }
 
   Future<void> _marcarComoPagado(Movimiento movimiento) async {
+    // H2.1: el ingreso se cobra, el gasto se paga
+    final accion = movimiento.accionMarcarTexto;
+    final participio = movimiento.esIngreso ? 'cobrado' : 'pagado';
     final confirmado = await _pedirConfirmacion(
-      titulo: 'Marcar como pagado',
-      mensaje: '¿Deseas marcar este movimiento como pagado? Esta acción no se puede deshacer.',
+      titulo: accion,
+      mensaje:
+          '¿Deseas marcar este movimiento como $participio? Esta acción no se puede deshacer.',
       textoConfirmar: 'Confirmar',
     );
     if (!confirmado || !mounted) return;
@@ -198,7 +202,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     try {
       await ServicioMovimientos.marcarComoPagado(movimiento);
       if (!mounted) return;
-      mostrarMensaje(context, 'Marcado como pagado');
+      mostrarMensaje(context, 'Marcado como $participio');
       await _cargarMovimientos();
     } on SesionExpirada {
       if (!mounted) return;
@@ -535,7 +539,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  m.estado.texto,
+                  m.estadoTexto,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: pagado ? Colores.verdeOscuro : const Color(0xFF8A5A00),
@@ -555,13 +559,13 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               ),
             ],
           ),
-          // La acción de pagar solo existe mientras esté pendiente
+          // La acción de pagar/cobrar solo existe mientras esté pendiente
           if (!pagado)
             TextButton(
               onPressed: () => _marcarComoPagado(m),
-              child: const Text(
-                'Marcar como pagado',
-                style: TextStyle(color: Colores.verdeOscuro),
+              child: Text(
+                m.accionMarcarTexto,
+                style: const TextStyle(color: Colores.verdeOscuro),
               ),
             ),
         ],

@@ -336,7 +336,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
               ),
               const SizedBox(height: 8),
               Text(
-                _editando ? 'Modifica los datos y guarda.' : 'Se guardará como pendiente.',
+                _editando
+                    ? 'Modifica los datos y guarda.'
+                    : (_tipo == TipoMovimiento.ingreso
+                        ? 'Se guardará como por cobrar.'
+                        : 'Se guardará como pendiente.'),
                 style: const TextStyle(fontSize: 16, color: Colores.grisAzulado),
               ),
               const SizedBox(height: 32),
@@ -385,23 +389,27 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
                 alTocar: _montoBloqueado
                     ? () => mostrarMensaje(
                   context,
-                  Movimiento.motivoMontoBloqueado,
+                  widget.movimiento?.motivoMontoBloqueadoTexto ??
+                      Movimiento.motivoMontoBloqueado,
                   esError: true,
                 )
                     : null,
               ),
               if (_montoBloqueado)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8, left: 16, right: 16),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: Colores.grisAzulado),
-                      SizedBox(width: 6),
+                      const Icon(Icons.info_outline,
+                          size: 16, color: Colores.grisAzulado),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          Movimiento.motivoMontoBloqueado,
-                          style: TextStyle(fontSize: 13, color: Colores.grisAzulado),
+                          widget.movimiento?.motivoMontoBloqueadoTexto ??
+                              Movimiento.motivoMontoBloqueado,
+                          style: const TextStyle(
+                              fontSize: 13, color: Colores.grisAzulado),
                         ),
                       ),
                     ],
