@@ -1,3 +1,5 @@
+import 'limite.dart';
+
 enum EstadoMovimiento { pendiente, pagado }
 
 enum TipoMovimiento { ingreso, gasto }
@@ -129,7 +131,8 @@ class Movimiento {
     );
   }
 
-  String get montoTexto => 'Bs ${monto.toStringAsFixed(2)}';
+  // H4.1: mismo formato con coma que el resto de la app
+  String get montoTexto => formatearBs(monto);
   String get fechaTexto => formatearFecha(fecha);
 
   static String formatearFecha(DateTime f) {
