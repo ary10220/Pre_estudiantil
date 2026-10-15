@@ -524,10 +524,11 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               ),
               Text(
                 m.montoTexto,
-                style: const TextStyle(
+                // H4.2: verde para ingresos y rojo para gastos, igual que los totales
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colores.verdeOscuro,
+                  color: m.esIngreso ? Colores.verdeOscuro : Colores.rojo,
                 ),
               ),
             ],
