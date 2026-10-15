@@ -10,7 +10,7 @@ void main() {
   });
 
   test('rechazado: vacío', () {
-    expect(validarMontoLimite('  '), 'Escribí el límite');
+    expect(validarMontoLimite('  '), 'Escribe el límite');
   });
 
   test('rechazado: 0, negativo o con letras', () {
@@ -20,7 +20,7 @@ void main() {
   });
 
   test('rechazado: más de 2 decimales', () {
-    expect(validarMontoLimite('10.555'), 'Usá como máximo 2 decimales');
+    expect(validarMontoLimite('10.555'), 'Usa como máximo 2 decimales');
   });
 
   test('resumen: barra y aviso al pasar el 80 %', () {

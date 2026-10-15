@@ -171,7 +171,7 @@ class _PantallaLimiteState extends State<PantallaLimite> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Cuánto querés gastar como máximo este mes.',
+                'Cuánto quieres gastar como máximo este mes.',
                 style: TextStyle(fontSize: 16, color: Colores.grisAzulado),
               ),
               // El límite no puede quedar por debajo de esto

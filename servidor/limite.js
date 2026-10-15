@@ -10,13 +10,13 @@ function formatearBs(centavos) {
 function validarMontoLimite(valor) {
   const texto = String(valor ?? '').trim();
   if (texto === '') {
-    return { ok: false, error: 'Escribí el límite' };
+    return { ok: false, error: 'Escribe el límite' };
   }
   if (!/^\d+(\.\d+)?$/.test(texto) || Number(texto) <= 0) {
     return { ok: false, error: 'El límite debe ser un número mayor a 0' };
   }
   if (!/^\d+(\.\d{1,2})?$/.test(texto)) {
-    return { ok: false, error: 'Usá como máximo 2 decimales' };
+    return { ok: false, error: 'Usa como máximo 2 decimales' };
   }
   return { ok: true };
 }

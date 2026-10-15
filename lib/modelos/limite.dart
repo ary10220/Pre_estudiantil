@@ -1,7 +1,7 @@
 // Límite mensual (#10): mismas reglas y mensajes que servidor/limite.js
-const String mensajeLimiteVacio = 'Escribí el límite';
+const String mensajeLimiteVacio = 'Escribe el límite';
 const String mensajeLimiteNoValido = 'El límite debe ser un número mayor a 0';
-const String mensajeLimiteDecimales = 'Usá como máximo 2 decimales';
+const String mensajeLimiteDecimales = 'Usa como máximo 2 decimales';
 
 // La coma se acepta en la app y viaja al servidor como punto
 String _normalizar(String valor) => valor.trim().replaceAll(',', '.');
