@@ -20,6 +20,8 @@ const {
   hoyTexto
 } = require('./filtros');
 
+const { validarCorreo } = require('./correo');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -53,6 +55,10 @@ app.post('/registro', async (req, res) => {
   if (!nombre || !correo || !contrasena) {
     return res.status(400).json({ error: 'Completa todos los campos' });
   }
+  const formato = validarCorreo(correo);
+  if (!formato.ok) {
+    return res.status(400).json({ error: formato.error });
+  }
   if (contrasena.length < 6) {
     return res.status(400).json({ error: 'La contraseña debe tener mínimo 6 caracteres' });
   }
@@ -61,7 +67,7 @@ app.post('/registro', async (req, res) => {
     const hash = await bcrypt.hash(contrasena, 10);
     await pool.query(
       'INSERT INTO usuarios (nombre, correo, contrasena_hash) VALUES ($1, $2, $3)',
-      [nombre, correo.toLowerCase(), hash]
+      [nombre, correo.trim().toLowerCase(), hash]
     );
     res.status(201).json({ mensaje: 'Cuenta creada' });
   } catch (e) {

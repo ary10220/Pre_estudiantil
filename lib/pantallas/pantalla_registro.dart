@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
+import '../modelos/correo.dart';
 import '../servicios/servicio_acceso.dart';
 import '../widgets/boton_pildora.dart';
 import '../widgets/campo_texto.dart';
@@ -36,6 +37,11 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
 
     if (nombre.isEmpty || correo.isEmpty || contrasena.isEmpty) {
       mostrarMensaje(context, 'Completa todos los campos', esError: true);
+      return;
+    }
+    final errorCorreo = validarCorreo(correo);
+    if (errorCorreo != null) {
+      mostrarMensaje(context, errorCorreo, esError: true);
       return;
     }
     if (contrasena.length < 6) {
