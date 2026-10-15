@@ -54,6 +54,14 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
     }
   }
 
+  // H3.2: vuelve al paso 1 para corregir el correo, sin borrar lo escrito
+  void _cambiarCorreo() {
+    setState(() {
+      _codigoRecibido = null;
+      _errorCorreo = null;
+    });
+  }
+
   // Paso 2: cambiar la contraseña con el código
   Future<void> _cambiarContrasena() async {
     final codigo = _codigoEscrito.text.trim();
@@ -129,6 +137,18 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                 },
               ),
               const SizedBox(height: 16),
+              // H3.2: si el correo estaba mal escrito, se corrige sin salir
+              if (enPaso2)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _cambiarCorreo,
+                    child: const Text(
+                      'Cambiar correo',
+                      style: TextStyle(color: Colores.verdeOscuro),
+                    ),
+                  ),
+                ),
 
               if (enPaso2) ...[
                 // No se envía correo real: mostramos el código en pantalla
