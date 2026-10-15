@@ -207,8 +207,10 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                 )
                     : _guardado != null
                     ? BotonPildora(
+                  // H4.4: check a la izquierda y la flecha de la derecha,
+                  // igual que los demás botones (antes: ← y → opuestas)
                   texto: 'Listo',
-                  icono: Icons.arrow_back,
+                  icono: Icons.check,
                   alPresionar: () => Navigator.pop(context, true),
                 )
                     : BotonPildora(
