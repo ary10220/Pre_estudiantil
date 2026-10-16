@@ -105,6 +105,3 @@ Se eligió el **hallazgo 2 (Hick, filtros)**.
 | 1 | `docs: registrar hallazgos de interacción`: este documento, las 3 capturas del antes y la mejora elegida | Hecho |
 | 2 | `fix: aplicar mejora de interacción`: `hoja_filtros.dart` con la prioridad en los filtros y las capturas del después en `docs/evidencias/clase-16/` | Hecho |
 
-## 7. Modalidad
-
-P2 con IA (Claude Code).
