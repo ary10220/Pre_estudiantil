@@ -21,6 +21,7 @@ const {
 } = require('./filtros');
 
 const { validarCorreo } = require('./correo');
+const { FILTROS: FILTROS_HISTORIAL, armarHistorial } = require('./historial');
 
 const app = express();
 app.use(cors());
@@ -470,6 +471,24 @@ app.put('/limite', exigirSesion, async (req, res) => {
     cliente.release();
   }
   res.json({ mes: mes.slice(0, 7), ...calcularResumen({ limite: Number(monto), gastado }) });
+});
+
+// ---------- Historial de actividad (Tarea 4) ----------
+app.get('/historial', exigirSesion, async (req, res) => {
+  const filtro = String(req.query.tipo || 'todos');
+  if (!FILTROS_HISTORIAL.includes(filtro)) {
+    return res.status(400).json({ error: 'Filtro inválido' });
+  }
+
+  const resultado = await pool.query(
+    `SELECT id, tipo, movimiento_id, monto::float8 AS monto, descripcion, creado_en
+     FROM eventos WHERE usuario_id = $1
+     ORDER BY creado_en DESC LIMIT 50`,
+    [req.usuario.id]
+  );
+
+  const grupos = armarHistorial(resultado.rows, filtro, new Date());
+  res.json({ grupos });
 });
 
 // ---------- Manejo de errores ----------
