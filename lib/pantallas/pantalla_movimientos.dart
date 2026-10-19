@@ -139,6 +139,10 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     await _cargarMovimientos();
   }
 
+  Future<void> _abrirHistorial() async {
+    await Navigator.pushNamed(context, Rutas.historial);
+  }
+
   // Editar: abre el mismo formulario con los datos del movimiento
   Future<void> _editar(Movimiento movimiento) async {
     final cambiado = await Navigator.push<bool>(
@@ -268,6 +272,16 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colores.azulOscuro,
         actions: [
+          // Fitts (Tarea 4): acceso visible y alcanzable al Historial
+          TextButton.icon(
+            onPressed: _abrirHistorial,
+            icon: const Icon(Icons.history, color: Colores.verdeOscuro),
+            label: const Text(
+              'Historial',
+              style: TextStyle(color: Colores.verdeOscuro),
+            ),
+            style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+          ),
           // H6.1: ícono + texto visible, sin depender del tooltip
           TextButton.icon(
             onPressed: _abrirLimite,

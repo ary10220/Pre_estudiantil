@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pantallas/pantalla_arranque.dart';
+import '../pantallas/pantalla_historial.dart';
 import '../pantallas/pantalla_inicio.dart';
 import '../pantallas/pantalla_limite.dart';
 import '../pantallas/pantalla_login.dart';
@@ -17,6 +18,7 @@ class Rutas {
   static const String movimientos = '/movimientos';
   static const String nuevoMovimiento = '/nuevo-movimiento';
   static const String limite = '/limite';
+  static const String historial = '/historial';
 
   static final Map<String, WidgetBuilder> mapa = {
     arranque: (context) => const PantallaArranque(),
@@ -27,5 +29,6 @@ class Rutas {
     movimientos: (context) => const PantallaMovimientos(),
     nuevoMovimiento: (context) => const PantallaNuevoMovimiento(),
     limite: (context) => const PantallaLimite(),
+    historial: (context) => const PantallaHistorial(),
   };
 }
