@@ -167,6 +167,15 @@ app.post('/cambiar-contrasena', async (req, res) => {
 const COLUMNAS_MOVIMIENTO = `id, concepto, monto::float8 AS monto,
   to_char(fecha, 'YYYY-MM-DD') AS fecha, tipo, categoria, estado`;
 
+// Guardar un evento en el historial, dentro de la misma transacción que la acción
+async function registrarEvento(cliente, { usuarioId, tipo, movimientoId = null, monto = null, descripcion = null }) {
+  await cliente.query(
+    `INSERT INTO eventos (usuario_id, tipo, movimiento_id, monto, descripcion)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [usuarioId, tipo, movimientoId, monto, descripcion]
+  );
+}
+
 // Listar los movimientos de la persona con sesión, con búsqueda y filtros opcionales
 app.get('/movimientos', exigirSesion, async (req, res) => {
   const lectura = leerFiltros(req.query);
@@ -217,12 +226,31 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
     }
   }
 
-  const resultado = await pool.query(
-    `INSERT INTO movimientos (usuario_id, concepto, monto, fecha, tipo, categoria)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${COLUMNAS_MOVIMIENTO}`,
-    [req.usuario.id, concepto, monto, fecha, tipo, categoria]
-  );
-  res.status(201).json({ movimiento: resultado.rows[0] });
+  // El movimiento y su evento viajan en la misma transacción (Tarea 4)
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const resultado = await cliente.query(
+      `INSERT INTO movimientos (usuario_id, concepto, monto, fecha, tipo, categoria)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${COLUMNAS_MOVIMIENTO}`,
+      [req.usuario.id, concepto, monto, fecha, tipo, categoria]
+    );
+    const guardado = resultado.rows[0];
+    await registrarEvento(cliente, {
+      usuarioId: req.usuario.id,
+      tipo: tipo === 'ingreso' ? 'ingreso_registrado' : 'gasto_registrado',
+      movimientoId: guardado.id,
+      monto: guardado.monto,
+      descripcion: concepto,
+    });
+    await cliente.query('COMMIT');
+    res.status(201).json({ movimiento: guardado });
+  } catch (e) {
+    await cliente.query('ROLLBACK');
+    throw e;
+  } finally {
+    cliente.release();
+  }
 });
 
 // Marcar como pagado: solo si está pendiente
@@ -232,25 +260,46 @@ app.post('/movimientos/:id/pagar', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Movimiento inválido' });
   }
 
-  const resultado = await pool.query(
-    `UPDATE movimientos SET estado = 'pagado'
-     WHERE id = $1 AND usuario_id = $2 AND estado = 'pendiente'
-     RETURNING ${COLUMNAS_MOVIMIENTO}`,
-    [id, req.usuario.id]
-  );
-
-  if (resultado.rows.length === 0) {
-    const existe = await pool.query(
-      'SELECT 1 FROM movimientos WHERE id = $1 AND usuario_id = $2',
+  // El UPDATE y el evento viajan en la misma transacción (Tarea 4)
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const resultado = await cliente.query(
+      `UPDATE movimientos SET estado = 'pagado'
+       WHERE id = $1 AND usuario_id = $2 AND estado = 'pendiente'
+       RETURNING ${COLUMNAS_MOVIMIENTO}`,
       [id, req.usuario.id]
     );
-    if (existe.rows.length === 0) {
-      return res.status(404).json({ error: 'Movimiento no encontrado' });
-    }
-    return res.status(409).json({ error: 'El movimiento ya está pagado' });
-  }
 
-  res.json({ movimiento: resultado.rows[0] });
+    if (resultado.rows.length === 0) {
+      // No se actualizó: no existe o ya estaba pagado. No hay nada que guardar.
+      await cliente.query('ROLLBACK');
+      const existe = await pool.query(
+        'SELECT 1 FROM movimientos WHERE id = $1 AND usuario_id = $2',
+        [id, req.usuario.id]
+      );
+      if (existe.rows.length === 0) {
+        return res.status(404).json({ error: 'Movimiento no encontrado' });
+      }
+      return res.status(409).json({ error: 'El movimiento ya está pagado' });
+    }
+
+    const guardado = resultado.rows[0];
+    await registrarEvento(cliente, {
+      usuarioId: req.usuario.id,
+      tipo: 'movimiento_pagado',
+      movimientoId: guardado.id,
+      monto: guardado.monto,
+      descripcion: guardado.concepto,
+    });
+    await cliente.query('COMMIT');
+    res.json({ movimiento: guardado });
+  } catch (e) {
+    await cliente.query('ROLLBACK');
+    throw e;
+  } finally {
+    cliente.release();
+  }
 });
 
 // Editar: si está pagado, el monto no puede cambiar. El tipo no se modifica.
@@ -398,11 +447,28 @@ app.put('/limite', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: contraGastado.error });
   }
 
-  await pool.query(
-    `INSERT INTO limites_mensuales (usuario_id, mes, monto) VALUES ($1, $2, $3)
-     ON CONFLICT (usuario_id, mes) DO UPDATE SET monto = EXCLUDED.monto, actualizado_en = NOW()`,
-    [req.usuario.id, mes, Number(monto)]
-  );
+  // El límite y su evento viajan en la misma transacción (Tarea 4)
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    await cliente.query(
+      `INSERT INTO limites_mensuales (usuario_id, mes, monto) VALUES ($1, $2, $3)
+       ON CONFLICT (usuario_id, mes) DO UPDATE SET monto = EXCLUDED.monto, actualizado_en = NOW()`,
+      [req.usuario.id, mes, Number(monto)]
+    );
+    await registrarEvento(cliente, {
+      usuarioId: req.usuario.id,
+      tipo: 'limite_definido',
+      monto: Number(monto),
+      descripcion: `Límite del mes ${mes.slice(0, 7)}`,
+    });
+    await cliente.query('COMMIT');
+  } catch (e) {
+    await cliente.query('ROLLBACK');
+    throw e;
+  } finally {
+    cliente.release();
+  }
   res.json({ mes: mes.slice(0, 7), ...calcularResumen({ limite: Number(monto), gastado }) });
 });
 
