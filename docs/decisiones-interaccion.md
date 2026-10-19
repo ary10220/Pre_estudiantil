@@ -31,6 +31,8 @@ Issues en GitHub:
   - `lib/pantallas/pantalla_movimientos.dart:270-280`: `TextButton.icon` con `Icons.history`, etiqueta `'Historial'` y `minimumSize: Size(0, 48)`.
   - `lib/pantallas/pantalla_movimientos.dart:145-147`: `_abrirHistorial()` hace `Navigator.pushNamed(context, Rutas.historial)`.
   - `lib/configuracion/rutas.dart:20,30`: constante `historial = '/historial'` + entrada en `Rutas.mapa`.
+- **Después (captura):** ![](evidencias/clase-16/tarea-4/10-despues-fitts-boton-historial-appbar.png)
+  El botón "Historial" (ícono + texto) queda a la izquierda de "Límite" en el AppBar de Movimientos. El `minimumSize: Size(0, 48)` deja el área activa en el mínimo recomendado por Material.
 
 ## 2. Hick (elegir) · chips del historial
 
@@ -44,6 +46,10 @@ Issues en GitHub:
   - `lib/modelos/evento.dart:30-45`: enum `FiltroHistorial { todos, gastos, pagos, limite }`.
   - `servidor/historial.js:46-53` (`pasaFiltro`): `'gastos'` deja pasar solo `gasto_registrado`; los ingresos quedan solo en `'todos'`.
   - `servidor/tests/historial.test.js:48-54`: test que lo prueba.
+- **Después (captura 1):** ![](evidencias/clase-16/tarea-4/11-despues-historial-todos.png)
+  Chip "Todos" seleccionado: se ven los 4 tipos de evento del día ("Marcaste como pagado: Almuerzo", "Registraste ingreso: Beca", "Registraste gasto: Almuerzo", "Definiste tu límite").
+- **Después (captura 2):** ![](evidencias/clase-16/tarea-4/12-despues-hick-filtro-gastos.png)
+  Chip "Gastos" seleccionado: queda solo el `gasto_registrado`. El ingreso "Beca" (Bs 500) **no aparece**, como se decidió para no sumar un quinto chip.
 
 ## 3. Carga cognitiva (comprender) · tarjeta de un evento
 
@@ -64,6 +70,7 @@ Issues en GitHub:
   - `lib/pantallas/pantalla_historial.dart:174-230` (`_tarjetaEvento` + `_estiloDeTipo`): la tarjeta y el mapa de ícono/color/frase por tipo de evento.
   - `servidor/servidor.js:187-220, 240-290, 414-445`: el servidor guarda `descripcion` (el concepto del movimiento o "Límite del mes 2026-10") y `monto` en el evento, para que la frase se arme sin otra consulta.
   - `servidor/historial.js:36-41` (`horaTexto`): la hora `HH:mm` ya viene formateada del servidor.
+- **Después (captura):** ver `11-despues-historial-todos.png`. Cada tarjeta trae ícono (check, flecha arriba, flecha abajo, alcancía), frase con el concepto real, monto en formato `Bs 25,00` y hora `21:06`. Los colores (rojo para gastos, verde para ingresos y pagos) coinciden con los chips de estado de Movimientos.
 
 ## 4. Estado vacío
 
@@ -72,6 +79,7 @@ El quinto criterio ("El estado vacío orienta qué hacer después") también se 
 - `lib/pantallas/pantalla_historial.dart:118-162` (`_estadoVacio`):
   - Sin filtro, sin eventos: ícono `history`, "Todavía no hay actividad. Registrá tu primer gasto y lo vas a ver acá." + botón **"Registrar gasto"** (`FilledButton.icon`, `minimumSize: Size(220, 48)`) que lleva a `/nuevo-movimiento`.
   - Con filtro, sin coincidencias: "No hay actividad para 'Gastos'." + "Ver todos", que vuelve a `FiltroHistorial.todos`.
+- **Captura:** ![](evidencias/clase-16/tarea-4/13-despues-estado-vacio.png)
 
 ## 5. Prueba
 
@@ -87,5 +95,9 @@ Carpeta: `docs/evidencias/clase-16/tarea-4/`
 | `consigna-01-tarea-4.jpg` | Diapositiva "Tarea 4 - Implementación", con lista de 4 incisos |
 | `consigna-02-criterios-terminado.jpg` | Criterios de terminado (6 checks) |
 | `consigna-03-portada.jpg` | Portada "Hacerlo posible no significa hacerlo fácil" |
+| `10-despues-fitts-boton-historial-appbar.png` | Fitts: botón "Historial" en el AppBar de Movimientos |
+| `11-despues-historial-todos.png` | Historial con chip "Todos": 4 eventos agrupados bajo "Hoy", con ícono/frase/monto/hora |
+| `12-despues-hick-filtro-gastos.png` | Hick: chip "Gastos" deja solo el `gasto_registrado` (sin ingresos, por decisión) |
+| `13-despues-estado-vacio.png` | Estado vacío: ícono + texto orientador + botón "Registrar gasto" |
 
-Capturas del *después* (acceso, chips, grupos, tarjetas, estado vacío): pendiente de tomar en el emulador tras aplicar `cambios/004_eventos.sql`.
+Capturas sacadas en el emulador Pixel_6a (1080×2400) después de aplicar `cambios/004_eventos.sql` y crear eventos con el usuario `prueba@correo.com`.
