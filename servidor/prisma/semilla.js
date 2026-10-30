@@ -2,14 +2,22 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../conexion');
 
 async function sembrar() {
-  const hash = await bcrypt.hash('123456', 10);
+  const correo = 'prueba@correo.com';
+  const existente = await prisma.usuario.findUnique({
+    where: { correo },
+    select: { id: true },
+  });
 
-  await prisma.usuario.upsert({
-    where: { correo: 'prueba@correo.com' },
-    update: { contrasenaHash: hash },
-    create: {
+  if (existente) {
+    console.log('La semilla ya existe: prueba@correo.com');
+    return;
+  }
+
+  const hash = await bcrypt.hash('123456', 10);
+  await prisma.usuario.create({
+    data: {
       nombre: 'Usuario Prueba',
-      correo: 'prueba@correo.com',
+      correo,
       contrasenaHash: hash,
     },
   });
