@@ -24,6 +24,7 @@ const {
 
 const { validarCorreo } = require('./correo');
 const { FILTROS: FILTROS_HISTORIAL, armarHistorial } = require('./historial');
+const { FRECUENCIAS, sumarFrecuencia } = require('./recurrentes');
 
 const app = express();
 app.use(cors());
@@ -47,6 +48,8 @@ function formatearMovimiento(movimiento) {
     tipo: movimiento.tipo,
     categoria: movimiento.categoria,
     estado: movimiento.estado,
+    recurrente: Boolean(movimiento.recurrenciaId),
+    frecuencia: movimiento.recurrencia?.frecuencia ?? null,
   };
 }
 
@@ -215,6 +218,7 @@ app.get('/movimientos', exigirSesion, async (req, res) => {
 
   const filas = await prisma.movimiento.findMany({
     where: { usuarioId: req.usuario.id },
+    include: { recurrencia: { select: { frecuencia: true } } },
     orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
   });
 
@@ -230,6 +234,8 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   const fecha = String(req.body.fecha || '');
   const tipo = req.body.tipo ?? 'gasto';
   const categoria = req.body.categoria ?? 'otros';
+  const recurrente = req.body.recurrente === true;
+  const frecuencia = req.body.frecuencia ?? null;
 
   if (!concepto || !fecha) {
     return res.status(400).json({ error: 'Completa todos los campos' });
@@ -246,6 +252,12 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   if (!CATEGORIAS.includes(categoria)) {
     return res.status(400).json({ error: 'Categoría inválida' });
   }
+  if (recurrente && tipo !== 'gasto') {
+    return res.status(400).json({ error: 'Solo los gastos pueden ser recurrentes' });
+  }
+  if (recurrente && !FRECUENCIAS.includes(frecuencia)) {
+    return res.status(400).json({ error: 'Frecuencia inválida' });
+  }
 
   // Solo los gastos cuentan para el límite mensual (#6); un ingreso no se controla
   if (tipo === 'gasto') {
@@ -255,31 +267,90 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
     }
   }
 
+  const montoDecimal = new Prisma.Decimal(monto);
+
   // El movimiento y su evento viajan en la misma transacción (Tarea 4)
   const guardado = await prisma.$transaction(async (tx) => {
-    const movimiento = await tx.movimiento.create({
+    if (!recurrente) {
+      const movimiento = await tx.movimiento.create({
+        data: {
+          usuarioId: req.usuario.id,
+          concepto,
+          monto: montoDecimal,
+          fecha: textoAFecha(fecha),
+          tipo,
+          categoria,
+        },
+        include: { recurrencia: { select: { frecuencia: true } } },
+      });
+
+      await registrarEvento(tx, {
+        usuarioId: req.usuario.id,
+        tipo: tipo === 'ingreso' ? 'ingreso_registrado' : 'gasto_registrado',
+        movimientoId: movimiento.id,
+        monto: movimiento.monto,
+        descripcion: concepto,
+      });
+
+      return { movimiento, siguiente: null };
+    }
+
+    const fechaBase = textoAFecha(fecha);
+    const fechaSiguiente = sumarFrecuencia(fechaBase, frecuencia);
+    const fechaDespues = sumarFrecuencia(fechaSiguiente, frecuencia);
+
+    const recurrencia = await tx.recurrencia.create({
       data: {
         usuarioId: req.usuario.id,
         concepto,
-        monto: new Prisma.Decimal(monto),
-        fecha: textoAFecha(fecha),
+        monto: montoDecimal,
+        categoria,
+        frecuencia,
+        proximaFecha: fechaDespues,
+      },
+    });
+
+    const movimiento = await tx.movimiento.create({
+      data: {
+        usuarioId: req.usuario.id,
+        recurrenciaId: recurrencia.id,
+        concepto,
+        monto: montoDecimal,
+        fecha: fechaBase,
         tipo,
         categoria,
       },
+      include: { recurrencia: { select: { frecuencia: true } } },
+    });
+
+    const siguiente = await tx.movimiento.create({
+      data: {
+        usuarioId: req.usuario.id,
+        recurrenciaId: recurrencia.id,
+        concepto,
+        monto: montoDecimal,
+        fecha: fechaSiguiente,
+        tipo,
+        categoria,
+      },
+      include: { recurrencia: { select: { frecuencia: true } } },
     });
 
     await registrarEvento(tx, {
       usuarioId: req.usuario.id,
-      tipo: tipo === 'ingreso' ? 'ingreso_registrado' : 'gasto_registrado',
+      tipo: 'gasto_registrado',
       movimientoId: movimiento.id,
       monto: movimiento.monto,
       descripcion: concepto,
     });
 
-    return movimiento;
+    return { movimiento, siguiente };
   });
 
-  res.status(201).json({ movimiento: formatearMovimiento(guardado) });
+  res.status(201).json({
+    movimiento: formatearMovimiento(guardado.movimiento),
+    siguiente: guardado.siguiente ? formatearMovimiento(guardado.siguiente) : null,
+  });
 });
 
 // Marcar como pagado: solo si está pendiente
@@ -299,7 +370,10 @@ app.post('/movimientos/:id/pagar', exigirSesion, async (req, res) => {
     // No se actualizó: no existe o ya estaba pagado. No hay nada que guardar.
     if (actualizado.count === 0) return null;
 
-    const movimiento = await tx.movimiento.findUnique({ where: { id } });
+    const movimiento = await tx.movimiento.findUnique({
+      where: { id },
+      include: { recurrencia: true },
+    });
     await registrarEvento(tx, {
       usuarioId: req.usuario.id,
       tipo: 'movimiento_pagado',
@@ -307,6 +381,36 @@ app.post('/movimientos/:id/pagar', exigirSesion, async (req, res) => {
       monto: movimiento.monto,
       descripcion: movimiento.concepto,
     });
+
+    if (movimiento.recurrenciaId && movimiento.recurrencia?.activa) {
+      const recurrencia = movimiento.recurrencia;
+      const fechaSiguiente = recurrencia.proximaFecha;
+      const fechaDespues = sumarFrecuencia(fechaSiguiente, recurrencia.frecuencia);
+
+      const existente = await tx.movimiento.findFirst({
+        where: { recurrenciaId: recurrencia.id, fecha: fechaSiguiente },
+        select: { id: true },
+      });
+
+      if (!existente) {
+        await tx.movimiento.create({
+          data: {
+            usuarioId: recurrencia.usuarioId,
+            recurrenciaId: recurrencia.id,
+            concepto: recurrencia.concepto,
+            monto: recurrencia.monto,
+            fecha: fechaSiguiente,
+            tipo: 'gasto',
+            categoria: recurrencia.categoria,
+          },
+        });
+      }
+
+      await tx.recurrencia.update({
+        where: { id: recurrencia.id },
+        data: { proximaFecha: fechaDespues },
+      });
+    }
 
     return movimiento;
   });
@@ -390,7 +494,10 @@ app.put('/movimientos/:id', exigirSesion, async (req, res) => {
     });
   }
 
-  const guardado = await prisma.movimiento.findUnique({ where: { id } });
+  const guardado = await prisma.movimiento.findUnique({
+    where: { id },
+    include: { recurrencia: { select: { frecuencia: true } } },
+  });
   res.json({ movimiento: formatearMovimiento(guardado) });
 });
 
@@ -652,6 +759,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error del servidor' });
 });
 
-app.listen(puerto, () => console.log(`Servidor en http://localhost:${puerto}`));
+if (require.main === module) {
+  app.listen(puerto, () => console.log(`Servidor en http://localhost:${puerto}`));
+}
+
+module.exports = app;
 
 
