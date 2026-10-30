@@ -7,7 +7,7 @@ module.exports = defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'node semilla.js',
+    seed: 'node prisma/semilla.js',
   },
   engine: 'classic',
   datasource: {

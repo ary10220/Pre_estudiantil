@@ -1,4 +1,4 @@
-name: pre_estudiantil 
+name: pre_estudiantil
 
 services:
   # ---------- PostgreSQL ----------
@@ -12,8 +12,8 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_HOST_AUTH_METHOD: trust 
-    expose: 
+      POSTGRES_HOST_AUTH_METHOD: trust
+    expose:
       - "5432"
     ports:
       - "${DB_PORT}:5432"
@@ -22,34 +22,45 @@ services:
     networks:
       - pre_estudiantil-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 5s
       timeout: 3s
       retries: 20
 
-  # pre_estudiantil-api:
-  #     build:
-  #       context: .
-  #       dockerfile: Dockerfile.dev
-  #     container_name: pre_estudiantil_api_prod
-  #     restart: unless-stopped
-  #     env_file: 
-  #       - .env 
-  #     expose:
-  #       - "3000"
-  #     ports: 
-  #       - ${BACKEND_PORT}:${BACKEND_PORT}
-  #     networks:
-  #       - pre_estudiantil-net
-  #     healthcheck:
-  #       test: ["CMD-SHELL", "wget -qO- http://localhost:${BACKEND_PORT}/ping >/dev/null 2>&1 || exit 1"]
-  #       interval: 10s
-  #       timeout: 3s
-  #       retries: 10
-  #       start_period: 20s
-  #     depends_on:
-  #       pre_estudiantil-db:
-  #         condition: service_healthy
+  # ---------- API Express + Prisma con hot-reload ----------
+  pre_estudiantil-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: pre_estudiantil_api_dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Dentro de la red de Docker la base se llama por su servicio y usa su puerto interno
+      DB_HOST: pre_estudiantil-db
+      DB_PORT: 5432
+    expose:
+      - "${SERVER_PORT}"
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    volumes:
+      # El código del host se monta en el contenedor: nodemon detecta los cambios
+      - .:/app
+      # Conserva las dependencias instaladas dentro de la imagen
+      - /app/node_modules
+    command: sh -c "npx prisma migrate deploy && npx nodemon --legacy-watch servidor.js"
+    networks:
+      - pre_estudiantil-net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:${SERVER_PORT}/ping >/dev/null 2>&1 || exit 1" ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      pre_estudiantil-db:
+        condition: service_healthy
 
 volumes:
   pre_estudiantil_db_dev_data:

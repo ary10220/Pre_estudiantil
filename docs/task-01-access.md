@@ -30,7 +30,7 @@
 3. **Protección de la ruta privada en dos lados.** La app no muestra contenido hasta que el servidor confirma el token, y la API rechaza con `401` cualquier petición privada sin sesión válida.
 4. **Recuperación sin correo real.** El servidor genera un código de 6 dígitos (tabla `recuperaciones`, vence en 15 minutos, un solo uso) y lo devuelve a la app para mostrarlo en pantalla, como permite la tarea.
 5. **Cambiar la contraseña cierra las demás sesiones** de esa cuenta.
-6. **Semilla** (`servidor/semilla.js`): crea el usuario de prueba con contraseña real encriptada. Se puede ejecutar varias veces sin duplicar.
+6. **Semilla** (`servidor/prisma/semilla.js`): crea el usuario de prueba con contraseña real encriptada. Se puede ejecutar varias veces sin duplicar.
 7. **Estructura simple por tipo de archivo**, con nombres en español, para que sea fácil de explicar.
 
 ## Archivos principales
@@ -41,7 +41,7 @@
 **Servidor (`servidor/`)**
 - `servidor.js`: rutas de la API y verificación de sesión (`exigirSesion`)
 - `conexion.js`: cliente de Prisma (ORM) para PostgreSQL
-- `semilla.js`: datos iniciales
+- `prisma/semilla.js`: datos iniciales
 - `.env.example`: variables necesarias
 
 **App (`lib/`)**

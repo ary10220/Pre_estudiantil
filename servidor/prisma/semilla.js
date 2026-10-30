@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const prisma = require('./conexion');
+const prisma = require('../conexion');
 
 async function sembrar() {
   const hash = await bcrypt.hash('123456', 10);
