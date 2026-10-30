@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Colores {
   static const Color verdeOscuro = Color(0xFF0B6B5F);
@@ -13,7 +14,7 @@ class Colores {
 }
 
 class Servidor {
-  // 10.0.2.2 = el localhost de tu PC visto desde el emulador de Android
-  // static const String urlBase = 'http://10.0.2.2:3000';
-  static const String urlBase = 'http://localhost:3000';
+  // La URL se configura en el .env de la raíz (API_BASE_URL)
+  static String get urlBase =>
+      dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3000';
 }

@@ -504,7 +504,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 96),
       itemCount: _movimientos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _tarjeta(_movimientos[i]),
     );
   }

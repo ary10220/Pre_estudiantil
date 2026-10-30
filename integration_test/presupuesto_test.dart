@@ -125,7 +125,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('registrar un gasto cambia el total', (tester) async {
-    app.main();
+    await app.main();
     await _asegurarSesion(tester);
 
     final gastosAntes = await _esperarGastos(tester);

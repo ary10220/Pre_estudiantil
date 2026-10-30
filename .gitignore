@@ -50,6 +50,8 @@ app.*.map.json
 # Backend
 servidor/.env
 servidor/node_modules/
+# Variables de entorno de Flutter (locales)
+/.env
 # Claude Code (local de cada uno, no se sube)
 .claude/
 
