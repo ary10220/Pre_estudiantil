@@ -47,10 +47,11 @@ void main() {
         tipo: TipoMovimiento.gasto,
         periodo: PeriodoFiltro.esteMes,
       );
-      expect(
-        filtros.activos.map((a) => a.texto).toList(),
-        ['Búsqueda: "café"', 'Gasto', 'Este mes'],
-      );
+      expect(filtros.activos.map((a) => a.texto).toList(), [
+        'Búsqueda: "café"',
+        'Gasto',
+        'Este mes',
+      ]);
     });
 
     test('quitar un filtro deja los demás', () {
@@ -93,13 +94,18 @@ void main() {
         ).validar(),
         null,
       );
-      expect(const FiltrosMovimientos(periodo: PeriodoFiltro.esteMes).validar(), null);
+      expect(
+        const FiltrosMovimientos(periodo: PeriodoFiltro.esteMes).validar(),
+        null,
+      );
     });
 
     test('los totales se leen de lo que devuelve el servidor', () {
-      final totales = TotalesMovimientos.desdeJson(
-        {'cantidad': 3, 'ingresos': 0, 'gastos': 36.6},
-      );
+      final totales = TotalesMovimientos.desdeJson({
+        'cantidad': 3,
+        'ingresos': 0,
+        'gastos': 36.6,
+      });
       expect(totales.cantidad, 3);
       expect(totales.ingresos, 0.0);
       expect(totales.gastos, 36.6);
@@ -121,27 +127,30 @@ void main() {
       expect(m.categoria, CategoriaMovimiento.estudio);
     });
 
-    test('pagar y editar conservan el tipo; editar puede cambiar la categoría', () {
-      final m = Movimiento(
-        id: 1,
-        concepto: 'Almuerzo',
-        monto: 25,
-        fecha: DateTime(2026, 10, 9),
-        tipo: TipoMovimiento.ingreso,
-        categoria: CategoriaMovimiento.comida,
-      );
-      final pagado = m.marcarComoPagado();
-      expect(pagado.tipo, TipoMovimiento.ingreso);
-      expect(pagado.categoria, CategoriaMovimiento.comida);
+    test(
+      'pagar y editar conservan el tipo; editar puede cambiar la categoría',
+      () {
+        final m = Movimiento(
+          id: 1,
+          concepto: 'Almuerzo',
+          monto: 25,
+          fecha: DateTime(2026, 10, 9),
+          tipo: TipoMovimiento.ingreso,
+          categoria: CategoriaMovimiento.comida,
+        );
+        final pagado = m.marcarComoPagado();
+        expect(pagado.tipo, TipoMovimiento.ingreso);
+        expect(pagado.categoria, CategoriaMovimiento.comida);
 
-      final editado = pagado.editar(
-        concepto: 'Almuerzo',
-        monto: 25,
-        fecha: DateTime(2026, 10, 9),
-        categoria: CategoriaMovimiento.otros,
-      );
-      expect(editado.tipo, TipoMovimiento.ingreso);
-      expect(editado.categoria, CategoriaMovimiento.otros);
-    });
+        final editado = pagado.editar(
+          concepto: 'Almuerzo',
+          monto: 25,
+          fecha: DateTime(2026, 10, 9),
+          categoria: CategoriaMovimiento.otros,
+        );
+        expect(editado.tipo, TipoMovimiento.ingreso);
+        expect(editado.categoria, CategoriaMovimiento.otros);
+      },
+    );
   });
 }

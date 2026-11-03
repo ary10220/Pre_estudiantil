@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 
 class CampoTexto extends StatefulWidget {
@@ -68,16 +69,21 @@ class _CampoTextoState extends State<CampoTexto> {
         prefixIcon: Icon(widget.icono, color: Colores.verdeOscuro),
         suffixIcon: widget.esContrasena
             ? IconButton(
-          icon: Icon(
-            _oculto ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: Colores.grisAzulado,
-          ),
-          onPressed: () => setState(() => _oculto = !_oculto),
-        )
+                icon: Icon(
+                  _oculto
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: Colores.grisAzulado,
+                ),
+                onPressed: () => setState(() => _oculto = !_oculto),
+              )
             : null,
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
         border: _borde(Colores.verdeClaro),
         enabledBorder: _borde(Colores.verdeClaro),
         focusedBorder: _borde(Colores.verdeOscuro, 2),

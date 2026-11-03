@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../servicios/servicio_acceso.dart';
@@ -71,13 +72,19 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
       _errorCodigo = codigo.isEmpty ? mensajeCampoVacio : null;
       _errorNueva = nueva.isEmpty
           ? mensajeCampoVacio
-          : (nueva.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null);
+          : (nueva.length < 6
+                ? 'La contraseña debe tener mínimo 6 caracteres'
+                : null);
     });
     if (_errorCodigo != null || _errorNueva != null) return;
 
     setState(() => _cargando = true);
     try {
-      await ServicioAcceso.cambiarContrasena(_correo.text.trim(), codigo, nueva);
+      await ServicioAcceso.cambiarContrasena(
+        _correo.text.trim(),
+        codigo,
+        nueva,
+      );
       if (!mounted) return;
       mostrarMensaje(context, 'Contraseña actualizada. Inicia sesión');
       Navigator.pushNamedAndRemoveUntil(
@@ -122,7 +129,10 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                 enPaso2
                     ? 'Escribe el código y tu nueva contraseña.'
                     : 'Te daremos un código de 6 dígitos.',
-                style: const TextStyle(fontSize: 16, color: Colores.grisAzulado),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colores.grisAzulado,
+                ),
               ),
               const SizedBox(height: 32),
               CampoTexto(
@@ -177,7 +187,10 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                       const SizedBox(height: 4),
                       const Text(
                         'Válido por 15 minutos',
-                        style: TextStyle(fontSize: 12, color: Colores.grisAzulado),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colores.grisAzulado,
+                        ),
                       ),
                     ],
                   ),
@@ -190,7 +203,8 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                   tipoTeclado: TextInputType.number,
                   error: _errorCodigo,
                   alCambiar: (_) {
-                    if (_errorCodigo != null) setState(() => _errorCodigo = null);
+                    if (_errorCodigo != null)
+                      setState(() => _errorCodigo = null);
                   },
                 ),
                 const SizedBox(height: 16),
@@ -211,13 +225,19 @@ class _PantallaRecuperarState extends State<PantallaRecuperar> {
                 height: 58,
                 child: _cargando
                     ? const Center(
-                  child: CircularProgressIndicator(color: Colores.verdeOscuro),
-                )
+                        child: CircularProgressIndicator(
+                          color: Colores.verdeOscuro,
+                        ),
+                      )
                     : BotonPildora(
-                  texto: enPaso2 ? 'Cambiar contraseña' : 'Obtener código',
-                  icono: enPaso2 ? Icons.check : Icons.mail_outline,
-                  alPresionar: enPaso2 ? _cambiarContrasena : _pedirCodigo,
-                ),
+                        texto: enPaso2
+                            ? 'Cambiar contraseña'
+                            : 'Obtener código',
+                        icono: enPaso2 ? Icons.check : Icons.mail_outline,
+                        alPresionar: enPaso2
+                            ? _cambiarContrasena
+                            : _pedirCodigo,
+                      ),
               ),
               const SizedBox(height: 24),
             ],

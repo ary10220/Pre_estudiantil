@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../configuracion/constantes.dart';
 
 // Error con un mensaje listo para mostrar al usuario
@@ -17,11 +19,11 @@ class ServicioAcceso {
 
   // ---------- Petición genérica al servidor ----------
   static Future<http.Response> llamar(
-      String metodo,
-      String ruta, {
-        Map<String, dynamic>? datos,
-        String? token,
-      }) async {
+    String metodo,
+    String ruta, {
+    Map<String, dynamic>? datos,
+    String? token,
+  }) async {
     final url = Uri.parse('${Servidor.urlBase}$ruta');
     final cabeceras = {
       'Content-Type': 'application/json',
@@ -33,11 +35,19 @@ class ServicioAcceso {
         case 'GET':
           return await http.get(url, headers: cabeceras);
         case 'PUT':
-          return await http.put(url, headers: cabeceras, body: jsonEncode(datos ?? {}));
+          return await http.put(
+            url,
+            headers: cabeceras,
+            body: jsonEncode(datos ?? {}),
+          );
         case 'DELETE':
           return await http.delete(url, headers: cabeceras);
         default:
-          return await http.post(url, headers: cabeceras, body: jsonEncode(datos ?? {}));
+          return await http.post(
+            url,
+            headers: cabeceras,
+            body: jsonEncode(datos ?? {}),
+          );
       }
     } on SocketException {
       throw ErrorAcceso('No se pudo conectar con el servidor');
@@ -48,27 +58,35 @@ class ServicioAcceso {
   static Map<String, dynamic> leer(http.Response respuesta) {
     final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>;
     if (respuesta.statusCode >= 400) {
-      throw ErrorAcceso(cuerpo['error'] ?? 'Error desconocido', respuesta.statusCode);
+      throw ErrorAcceso(
+        cuerpo['error'] ?? 'Error desconocido',
+        respuesta.statusCode,
+      );
     }
     return cuerpo;
   }
 
   // ---------- Registro ----------
-  static Future<void> registrar(String nombre, String correo, String contrasena) async {
-    final respuesta = await llamar('POST', '/registro', datos: {
-      'nombre': nombre,
-      'correo': correo,
-      'contrasena': contrasena,
-    });
+  static Future<void> registrar(
+    String nombre,
+    String correo,
+    String contrasena,
+  ) async {
+    final respuesta = await llamar(
+      'POST',
+      '/registro',
+      datos: {'nombre': nombre, 'correo': correo, 'contrasena': contrasena},
+    );
     leer(respuesta);
   }
 
   // ---------- Inicio de sesión: guarda el token en el celular ----------
   static Future<void> iniciarSesion(String correo, String contrasena) async {
-    final respuesta = await llamar('POST', '/login', datos: {
-      'correo': correo,
-      'contrasena': contrasena,
-    });
+    final respuesta = await llamar(
+      'POST',
+      '/login',
+      datos: {'correo': correo, 'contrasena': contrasena},
+    );
     final datos = leer(respuesta);
 
     final prefs = await SharedPreferences.getInstance();
@@ -107,16 +125,24 @@ class ServicioAcceso {
   // ---------- Recuperación de contraseña ----------
   // Devuelve el código de 6 dígitos (no se envía correo real)
   static Future<String> pedirCodigo(String correo) async {
-    final respuesta = await llamar('POST', '/recuperar', datos: {'correo': correo});
+    final respuesta = await llamar(
+      'POST',
+      '/recuperar',
+      datos: {'correo': correo},
+    );
     return leer(respuesta)['codigo'];
   }
 
-  static Future<void> cambiarContrasena(String correo, String codigo, String nueva) async {
-    final respuesta = await llamar('POST', '/cambiar-contrasena', datos: {
-      'correo': correo,
-      'codigo': codigo,
-      'nuevaContrasena': nueva,
-    });
+  static Future<void> cambiarContrasena(
+    String correo,
+    String codigo,
+    String nueva,
+  ) async {
+    final respuesta = await llamar(
+      'POST',
+      '/cambiar-contrasena',
+      datos: {'correo': correo, 'codigo': codigo, 'nuevaContrasena': nueva},
+    );
     leer(respuesta);
   }
 

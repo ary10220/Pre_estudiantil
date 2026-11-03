@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/correo.dart';
@@ -45,8 +46,11 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
       _errorCorreo = correo.isEmpty ? mensajeCampoVacio : validarCorreo(correo);
       _errorContrasena = contrasena.isEmpty
           ? mensajeCampoVacio
-          : (contrasena.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null);
-      _errorConfirmacion = _errorContrasena == null && contrasena != _confirmacion.text
+          : (contrasena.length < 6
+                ? 'La contraseña debe tener mínimo 6 caracteres'
+                : null);
+      _errorConfirmacion =
+          _errorContrasena == null && contrasena != _confirmacion.text
           ? 'Las contraseñas no coinciden'
           : null;
     });
@@ -132,7 +136,8 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 esContrasena: true,
                 error: _errorContrasena,
                 alCambiar: (_) {
-                  if (_errorContrasena != null) setState(() => _errorContrasena = null);
+                  if (_errorContrasena != null)
+                    setState(() => _errorContrasena = null);
                 },
               ),
               const SizedBox(height: 16),
@@ -143,7 +148,8 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 esContrasena: true,
                 error: _errorConfirmacion,
                 alCambiar: (_) {
-                  if (_errorConfirmacion != null) setState(() => _errorConfirmacion = null);
+                  if (_errorConfirmacion != null)
+                    setState(() => _errorConfirmacion = null);
                 },
               ),
               const SizedBox(height: 32),
@@ -151,13 +157,15 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
                 height: 58,
                 child: _cargando
                     ? const Center(
-                  child: CircularProgressIndicator(color: Colores.verdeOscuro),
-                )
+                        child: CircularProgressIndicator(
+                          color: Colores.verdeOscuro,
+                        ),
+                      )
                     : BotonPildora(
-                  texto: 'Registrarse',
-                  icono: Icons.person_add_alt_outlined,
-                  alPresionar: _registrar,
-                ),
+                        texto: 'Registrarse',
+                        icono: Icons.person_add_alt_outlined,
+                        alPresionar: _registrar,
+                      ),
               ),
               const SizedBox(height: 24),
             ],
