@@ -94,7 +94,7 @@ En la raíz del proyecto debe existir un archivo `.env`. La URL depende del disp
 
 ```env
 API_BASE_URL=http://10.0.2.2:3000
-APP_NAME="Presupuesto Estudiantil"
+APP_NAME="UniBudget"
 ```
 
 `10.0.2.2` es el `localhost` de la computadora visto desde el emulador de Android.
@@ -103,7 +103,7 @@ APP_NAME="Presupuesto Estudiantil"
 
 ```env
 API_BASE_URL=http://localhost:3000
-APP_NAME="Presupuesto Estudiantil"
+APP_NAME="UniBudget"
 ```
 
 El simulador de iOS y la app de escritorio comparten la red de la Mac, por eso usan `localhost`.
@@ -122,7 +122,7 @@ Luego configura el `.env` con esa IP:
 
 ```env
 API_BASE_URL=http://192.168.1.50:3000
-APP_NAME="Presupuesto Estudiantil"
+APP_NAME="UniBudget"
 ```
 
 Requisitos para el iPhone físico:
@@ -223,6 +223,14 @@ All tests passed!
 
 La prueba deja un movimiento creado en la base de datos.
 
+Para ejecutar solo la prueba de recurrentes:
+
+```bash
+flutter test integration_test/recurrentes_test.dart -d <ID_DEL_DISPOSITIVO>
+```
+
+Esta prueba crea un gasto semanal y comprueba que aparezcan la ocurrencia actual y la siguiente, y que el total de gastos suba.
+
 Para ejecutar todas las pruebas de integración de la carpeta:
 
 ```bash
@@ -245,7 +253,7 @@ Flutter:
 flutter test
 ```
 
-Backend:
+Backend, con la base de datos de desarrollo levantada:
 
 ```bash
 cd servidor
