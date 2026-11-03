@@ -63,7 +63,7 @@ Luego:
 
 ```powershell
 npm install
-node semilla.js      # carga el usuario de prueba: prueba@correo.com / 123456
+node prisma/semilla.js      # carga el usuario de prueba: prueba@correo.com / 123456
 node servidor.js     # deja la API en http://localhost:3000
 ```
 

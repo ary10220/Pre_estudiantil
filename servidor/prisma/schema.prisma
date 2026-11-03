@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model Usuario {
@@ -20,6 +20,7 @@ model Usuario {
   limites        LimiteMensual[]
   eventos        Evento[]
   presupuestos   PresupuestoCategoria[]
+  recurrencias   Recurrencia[]
 
   @@map("usuarios")
 }
@@ -50,20 +51,41 @@ model Recuperacion {
 }
 
 model Movimiento {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int      @map("usuario_id")
-  concepto  String   @db.VarChar(150)
-  monto     Decimal  @db.Decimal(12, 2)
-  fecha     DateTime @db.Date
-  tipo      String   @default("gasto") @db.VarChar(10)
-  categoria String   @default("otros") @db.VarChar(20)
-  estado    String   @default("pendiente") @db.VarChar(10)
-  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int      @map("usuario_id")
+  recurrenciaId Int?     @map("recurrencia_id")
+  concepto      String   @db.VarChar(150)
+  monto         Decimal  @db.Decimal(12, 2)
+  fecha         DateTime @db.Date
+  tipo          String   @default("gasto") @db.VarChar(10)
+  categoria     String   @default("otros") @db.VarChar(20)
+  estado        String   @default("pendiente") @db.VarChar(10)
+  creadoEn      DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
 
-  usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  eventos Evento[]
+  usuario     Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  recurrencia Recurrencia? @relation(fields: [recurrenciaId], references: [id], onDelete: SetNull)
+  eventos     Evento[]
 
+  @@unique([recurrenciaId, fecha])
   @@map("movimientos")
+}
+
+model Recurrencia {
+  id           Int      @id @default(autoincrement())
+  usuarioId    Int      @map("usuario_id")
+  concepto     String   @db.VarChar(150)
+  monto        Decimal  @db.Decimal(12, 2)
+  categoria    String   @db.VarChar(20)
+  frecuencia   String   @db.VarChar(10)
+  proximaFecha DateTime @map("proxima_fecha") @db.Date
+  activa       Boolean  @default(true)
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
+
+  usuario     Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  movimientos Movimiento[]
+
+  @@index([usuarioId])
+  @@map("recurrencias")
 }
 
 model LimiteMensual {

@@ -4,10 +4,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+FROM node:24-alpine AS runner
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+
 COPY --from=deps /app/node_modules ./node_modules
-COPY package*.json ./
-COPY prisma ./prisma
-COPY *.js ./
+COPY . .
 
 RUN npx prisma generate
 
@@ -16,4 +19,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate dev && node servidor.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && npx nodemon --legacy-watch servidor.js"]

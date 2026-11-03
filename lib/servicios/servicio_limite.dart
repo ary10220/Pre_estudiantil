@@ -74,11 +74,7 @@ class ServicioLimite {
     await _pedir(
       'PUT',
       ruta: '/presupuestos-categoria',
-      datos: {
-        'categoria': categoria,
-        'monto': monto,
-        if (mes != null) 'mes': mes,
-      },
+      datos: {'categoria': categoria, 'monto': monto, 'mes': ?mes},
     );
   }
 }
