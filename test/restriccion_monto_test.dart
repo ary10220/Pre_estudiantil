@@ -23,14 +23,14 @@ void main() {
 
     test('un movimiento pagado rechaza cambiar el monto', () {
       expect(
-            () => pagado().editar(
+        () => pagado().editar(
           concepto: 'Fotocopias',
           monto: 40,
           fecha: DateTime(2026, 10, 9),
         ),
         throwsA(
           isA<StateError>().having(
-                (e) => e.message,
+            (e) => e.message,
             'mensaje',
             Movimiento.motivoMontoBloqueado,
           ),

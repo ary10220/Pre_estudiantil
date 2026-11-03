@@ -1,5 +1,7 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 
 class FondoDecorativo extends StatelessWidget {
@@ -7,10 +9,7 @@ class FondoDecorativo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _PintorEsquinas(),
-    );
+    return CustomPaint(size: Size.infinite, painter: _PintorEsquinas());
   }
 }
 
@@ -46,7 +45,14 @@ class _PintorEsquinas extends CustomPainter {
     final formaOscura = Path()
       ..moveTo(0, 0)
       ..lineTo(ancho * 0.32, 0)
-      ..cubicTo(ancho * 0.25, alto * 0.07, ancho * 0.12, alto * 0.09, 0, alto * 0.13)
+      ..cubicTo(
+        ancho * 0.25,
+        alto * 0.07,
+        ancho * 0.12,
+        alto * 0.09,
+        0,
+        alto * 0.13,
+      )
       ..close();
     canvas.drawPath(formaOscura, pinturaOscura);
   }

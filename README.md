@@ -42,7 +42,7 @@ docker compose -f docker-compose.dev.yml up -d --build
 
 ```env
 API_BASE_URL=http://10.0.2.2:3000
-APP_NAME="Presupuesto Estudiantil"
+APP_NAME="UniBudget"
 ```
 
 Usa `http://localhost:3000` en macOS o web.
@@ -69,6 +69,7 @@ La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si 
 - Acceso: registro, inicio y cierre de sesión, recuperación de contraseña y sesión persistente.
 - Movimientos: crear, marcar como pagado, editar y eliminar; búsqueda y filtros.
 - Límite mensual: definir y consultar el límite; aviso al superarlo.
+- Recurrentes: gastos semanales o mensuales que generan la siguiente ocurrencia y cuentan en el presupuesto.
 - Historial: eventos agrupados por día y filtros (Todos, Gastos, Pagos, Límite).
 
 ## Pruebas
@@ -79,7 +80,7 @@ Unitarias de Flutter:
 flutter test
 ```
 
-Unitarias del backend:
+Pruebas del backend, con la base de datos de desarrollo levantada:
 
 ```bash
 cd servidor
@@ -92,10 +93,11 @@ Integración, con el backend y un dispositivo o emulador funcionando:
 flutter test integration_test -d <ID_DEL_DISPOSITIVO>
 ```
 
-Para ejecutar solo la prueba de presupuesto:
+Para ejecutar una prueba de integración específica:
 
 ```bash
 flutter test integration_test/presupuesto_test.dart -d <ID_DEL_DISPOSITIVO>
+flutter test integration_test/recurrentes_test.dart -d <ID_DEL_DISPOSITIVO>
 ```
 
 Consulta [INICIO_RAPIDO.md](INICIO_RAPIDO.md) para preparar el entorno.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../servicios/servicio_acceso.dart';
@@ -43,7 +44,9 @@ class _PantallaArranqueState extends State<PantallaArranque> {
   Widget build(BuildContext context) {
     if (!_sinConexion) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colores.verdeOscuro)),
+        body: Center(
+          child: CircularProgressIndicator(color: Colores.verdeOscuro),
+        ),
       );
     }
 
@@ -70,7 +73,11 @@ class _PantallaArranqueState extends State<PantallaArranque> {
               const Text(
                 'Tu sesión sigue guardada. Revisa tu conexión e intenta de nuevo.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colores.grisAzulado, height: 1.4),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colores.grisAzulado,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 32),
               BotonPildora(

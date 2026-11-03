@@ -18,6 +18,13 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # Se ignoran los directorios que no tienen nada que ver con flutter 
+    - .dart_tool/**
+    - .idea/**
+    - .ignore/**
+    - docs/**
+    - evidencias/**
+    - servidor/**
 
 linter:
   # The lint rules applied to this project can be customized in the
