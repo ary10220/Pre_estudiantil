@@ -609,6 +609,23 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             '${m.tipo.texto} · ${m.categoria.texto} · ${m.fechaTexto}',
             style: const TextStyle(color: Colores.grisAzulado),
           ),
+          if (m.recurrente) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.repeat, size: 16, color: Colores.verdeOscuro),
+                const SizedBox(width: 4),
+                Text(
+                  m.recurrenciaTexto,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colores.verdeOscuro,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
