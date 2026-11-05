@@ -59,4 +59,12 @@ servidor/node_modules/
 
 
 # Apuntes local
-docs1/.agents/
+.agents/
+docs1/
+
+# Exclusiones locales
+stack.md
+stack/
+obsidian.md
+.obsidian/
+obsidian/

@@ -21,7 +21,7 @@
 - Frecuencias válidas: `semanal` y `mensual`.
 - Al crear un gasto recurrente se guarda la ocurrencia actual y se genera la siguiente.
 - Al pagar una ocurrencia recurrente se genera la siguiente.
-- Las ocurrencias son movimientos normales, por lo que cuentan en el límite y en el presupuesto según su fecha.
+- Las ocurQrencias son movimientos normales, por lo que cuentan en el límite y en el presupuesto según su fecha.
 - Endpoint `POST /movimientos` acepta `recurrente` y `frecuencia`.
 - La app Express se exporta para poder iniciarla en las pruebas de integración.
 

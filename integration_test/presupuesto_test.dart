@@ -121,6 +121,24 @@ Future<void> _asegurarSesion(WidgetTester tester) async {
   await _esperarTexto(tester, 'Mis movimientos');
 }
 
+Future<void> _volverAtras(WidgetTester tester) async {
+  final botonAtras = find.byType(BackButton);
+  if (botonAtras.evaluate().isNotEmpty) {
+    await tester.tap(botonAtras.first);
+  } else {
+    final iconoAtras = find.byIcon(Icons.arrow_back);
+    await tester.tap(iconoAtras.first);
+  }
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _abrirPantallaLimite(WidgetTester tester) async {
+  final botonLimite = find.widgetWithText(TextButton, 'Límite');
+  expect(botonLimite, findsOneWidget);
+  await tester.tap(botonLimite);
+  await _esperarTexto(tester, 'Presupuesto por categorías');
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -140,7 +158,7 @@ void main() {
     await tester.pump();
 
     final concepto = 'Gasto E2E ${DateTime.now().millisecondsSinceEpoch}';
-    const monto = 12;
+    const monto = 12.0;
     await tester.enterText(_campo('Concepto'), concepto);
     await tester.enterText(_campo('Monto (Bs)'), monto.toStringAsFixed(2));
 
@@ -157,5 +175,123 @@ void main() {
     expect(gastosDespues - gastosAntes, closeTo(monto, 0.01));
     expect(find.text(concepto), findsOneWidget);
     await Future.delayed(const Duration(minutes: 10));
+  });
+
+  // tarea 7
+  testWidgets('un ingreso no altera el consumo del presupuesto por categoría', (
+    tester,
+  ) async {
+    await app.main();
+    await _asegurarSesion(tester);
+
+    await _abrirPantallaLimite(tester);
+
+    final tarjetaComida = find.text('Comida');
+    expect(tarjetaComida, findsWidgets);
+    await tester.tap(tarjetaComida.first);
+    await _esperarTexto(tester, 'Presupuesto (Bs)');
+
+    final campoPresupuesto = _campo('Presupuesto (Bs)');
+    await tester.enterText(campoPresupuesto, '300.00');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Guardar'));
+    await _esperarSinTexto(tester, 'Presupuesto (Bs)');
+    await _esperarTexto(tester, 'Presupuesto por categorías');
+
+    await _volverAtras(tester);
+    await _esperarTexto(tester, 'Mis movimientos');
+    final gastosAntesDeIngreso = await _esperarGastos(tester);
+
+    await tester.tap(find.text('Nuevo movimiento'));
+    await _esperarTexto(tester, 'Categoría');
+
+    final chipIngreso = find.widgetWithText(ChoiceChip, 'Ingreso');
+    await tester.ensureVisible(chipIngreso);
+    await tester.tap(chipIngreso);
+    await tester.pump();
+
+    final chipComida = find.widgetWithText(ChoiceChip, 'Comida');
+    await tester.ensureVisible(chipComida);
+    await tester.tap(chipComida);
+    await tester.pump();
+
+    final conceptoIngreso =
+        'Ingreso Beca E2E ${DateTime.now().millisecondsSinceEpoch}';
+    const montoIngreso = 100.0;
+    await tester.enterText(_campo('Concepto'), conceptoIngreso);
+    await tester.enterText(
+      _campo('Monto (Bs)'),
+      montoIngreso.toStringAsFixed(2),
+    );
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+
+    await _esperarSinTexto(tester, 'Categoría');
+    await _esperarTexto(tester, 'Mis movimientos');
+
+    final gastosDespuesDeIngreso = await _esperarGastos(tester);
+    expect(gastosDespuesDeIngreso, equals(gastosAntesDeIngreso));
+
+    await _abrirPantallaLimite(tester);
+    expect(find.text('Comida'), findsWidgets);
+    await _volverAtras(tester);
+    await _esperarTexto(tester, 'Mis movimientos');
+  });
+
+  testWidgets('mover un gasto a otra categoría recalcula ambos presupuestos', (
+    tester,
+  ) async {
+    await app.main();
+    await _asegurarSesion(tester);
+
+    await tester.tap(find.text('Nuevo movimiento'));
+    await _esperarTexto(tester, 'Categoría');
+
+    final chipComida = find.widgetWithText(ChoiceChip, 'Comida');
+    await tester.ensureVisible(chipComida);
+    await tester.tap(chipComida);
+    await tester.pump();
+
+    final conceptoMover =
+        'Gasto Mover ${DateTime.now().millisecondsSinceEpoch}';
+    const montoMover = 20.0;
+    await tester.enterText(_campo('Concepto'), conceptoMover);
+    await tester.enterText(_campo('Monto (Bs)'), montoMover.toStringAsFixed(2));
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+
+    await _esperarSinTexto(tester, 'Categoría');
+    await _esperarTexto(tester, 'Mis movimientos');
+    await _esperarTexto(tester, conceptoMover);
+
+    final botonEditar = find.byTooltip('Editar').first;
+    await tester.ensureVisible(botonEditar);
+    await tester.tap(botonEditar);
+    await _esperarTexto(tester, 'Editar movimiento');
+
+    final chipTransporte = find.widgetWithText(ChoiceChip, 'Transporte');
+    await tester.ensureVisible(chipTransporte);
+    await tester.tap(chipTransporte);
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+
+    await _esperarSinTexto(tester, 'Editar movimiento');
+    await _esperarTexto(tester, 'Mis movimientos');
+
+    expect(find.textContaining('Transporte'), findsWidgets);
+
+    await _abrirPantallaLimite(tester);
+    expect(find.text('Presupuesto por categorías'), findsOneWidget);
+    expect(find.text('Transporte'), findsWidgets);
+    await _volverAtras(tester);
+    await _esperarTexto(tester, 'Mis movimientos');
   });
 }
