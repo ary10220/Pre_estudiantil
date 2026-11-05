@@ -82,30 +82,28 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
     );
   }
 
-  // Hick: 4 chips mutuamente excluyentes. Ingresos aparecen solo en "Todos".
+  // Hick: 5 chips mutuamente excluyentes organizados en Wrap.
+  // Todos estan visibles sin necesidad de scroll horizontal.
   Widget _barraFiltros() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final f in FiltroHistorial.values) ...[
-            ChoiceChip(
-              label: Text(f.etiqueta),
-              selected: _filtro == f,
-              onSelected: (_) => _cambiarFiltro(f),
-              selectedColor: Colores.verdeOscuro,
-              backgroundColor: Colores.verdeClaro,
-              labelStyle: TextStyle(
-                color: _filtro == f ? Colors.white : Colores.verdeOscuro,
-                fontWeight: FontWeight.w600,
-              ),
-              side: BorderSide.none,
-              showCheckmark: false,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final f in FiltroHistorial.values)
+          ChoiceChip(
+            label: Text(f.etiqueta),
+            selected: _filtro == f,
+            onSelected: (_) => _cambiarFiltro(f),
+            selectedColor: Colores.verdeOscuro,
+            backgroundColor: Colores.verdeClaro,
+            labelStyle: TextStyle(
+              color: _filtro == f ? Colors.white : Colores.verdeOscuro,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+            side: BorderSide.none,
+            showCheckmark: false,
+          ),
+      ],
     );
   }
 
