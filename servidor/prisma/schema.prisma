@@ -21,6 +21,8 @@ model Usuario {
   eventos        Evento[]
   presupuestos   PresupuestoCategoria[]
   recurrencias   Recurrencia[]
+  metas          MetaAhorro[]
+  movimientosMeta MovimientoMeta[]
 
   @@map("usuarios")
 }
@@ -129,4 +131,41 @@ model Evento {
 
   @@index([usuarioId, creadoEn(sort: Desc)], map: "idx_eventos_usuario_fecha")
   @@map("eventos")
+}
+
+model MetaAhorro {
+  id             Int      @id @default(autoincrement())
+  usuarioId      Int      @map("usuario_id")
+  nombre         String   @db.VarChar(100)
+  montoObjetivo  Decimal  @map("monto_objetivo") @db.Decimal(12, 2)
+  fechaObjetivo  DateTime @map("fecha_objetivo") @db.Date
+  montoReservado Decimal  @default(0) @map("monto_reservado") @db.Decimal(12, 2)
+  creadoEn       DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
+  actualizadoEn  DateTime @default(now()) @map("actualizado_en") @db.Timestamp(6)
+
+  usuario       Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  movimientos   MovimientoMeta[] @relation("MovimientosMeta")
+  transferencias MovimientoMeta[] @relation("MovimientosMetaRelacionada")
+
+  @@unique([usuarioId, nombre])
+  @@index([usuarioId])
+  @@map("metas_ahorro")
+}
+
+model MovimientoMeta {
+  id                Int      @id @default(autoincrement())
+  usuarioId         Int      @map("usuario_id")
+  metaId            Int      @map("meta_id")
+  metaRelacionadaId Int?     @map("meta_relacionada_id")
+  tipo              String   @db.VarChar(30)
+  monto             Decimal  @db.Decimal(12, 2)
+  creadoEn          DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
+
+  usuario         Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  meta            MetaAhorro  @relation("MovimientosMeta", fields: [metaId], references: [id], onDelete: Cascade)
+  metaRelacionada MetaAhorro? @relation("MovimientosMetaRelacionada", fields: [metaRelacionadaId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, creadoEn(sort: Desc)], map: "idx_movimientos_meta_usuario_fecha")
+  @@index([metaId])
+  @@map("movimientos_meta")
 }
