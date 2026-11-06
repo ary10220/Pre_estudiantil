@@ -172,7 +172,7 @@ Contraseña: 123456
 
 ## 9. Enlace al commit
 
-Pendiente de crear el commit de esta mejora.
+[Ver commit](https://github.com/ihc-team/Pre_estudiantil/commit/8c8c0de2deb2aeb948ab7161cd722ba332219bd1)
 
 ## 10. Checklist de entrega
 
@@ -185,4 +185,4 @@ Pendiente de crear el commit de esta mejora.
 - [x] Capturas del antes.
 - [x] Capturas del después.
 - [ ] Prueba con otra persona.
-- [ ] Enlace al commit.
+- [x] Enlace al commit.
