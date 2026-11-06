@@ -16,6 +16,8 @@ import '../widgets/mensajes.dart';
 import 'pantalla_nuevo_movimiento.dart';
 import '../modelos/presupuesto_categoria.dart';
 
+enum _VistaMovimientos { todos, pendientes, pagados, recurrentes }
+
 class PantallaMovimientos extends StatefulWidget {
   const PantallaMovimientos({super.key});
 
@@ -26,10 +28,10 @@ class PantallaMovimientos extends StatefulWidget {
 class _PantallaMovimientosState extends State<PantallaMovimientos> {
   String? _nombre;
   List<Movimiento> _movimientos = [];
-  TotalesMovimientos? _totales;
   bool _cargandoLista = true;
   ResumenLimite? _resumen;
   List<PresupuestoCategoria> _categorias = [];
+  _VistaMovimientos _vista = _VistaMovimientos.todos;
 
   // Búsqueda y filtros (#7)
   FiltrosMovimientos _filtros = FiltrosMovimientos.vacio;
@@ -82,7 +84,6 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       if (!mounted || numero != _peticion) return;
       setState(() {
         _movimientos = listado.movimientos;
-        _totales = listado.totales;
         _resumen = resumen;
         _categorias = categorias;
         _cargandoLista = false;
@@ -340,6 +341,8 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               _tarjetaLimite(_resumen!),
               const SizedBox(height: 16),
             ],
+            _chipsVista(),
+            const SizedBox(height: 8),
             _barraBusqueda(),
             _filtrosActivos(),
             _lineaTotales(),
@@ -419,10 +422,75 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     );
   }
 
-  // Total de la lista que se está viendo (lo calcula el servidor sobre esa misma lista)
+  List<Movimiento> get _visibles {
+    switch (_vista) {
+      case _VistaMovimientos.todos:
+        return _movimientos;
+      case _VistaMovimientos.pendientes:
+        return _movimientos
+            .where((m) => m.estado == EstadoMovimiento.pendiente)
+            .toList();
+      case _VistaMovimientos.pagados:
+        return _movimientos
+            .where((m) => m.estado == EstadoMovimiento.pagado)
+            .toList();
+      case _VistaMovimientos.recurrentes:
+        return _movimientos.where((m) => m.recurrente).toList();
+    }
+  }
+
+  TotalesMovimientos _totalesDe(List<Movimiento> movimientos) {
+    var ingresos = 0.0;
+    var gastos = 0.0;
+    for (final movimiento in movimientos) {
+      if (movimiento.esIngreso) {
+        ingresos += movimiento.monto;
+      } else {
+        gastos += movimiento.monto;
+      }
+    }
+    return TotalesMovimientos(
+      cantidad: movimientos.length,
+      ingresos: ingresos,
+      gastos: gastos,
+    );
+  }
+
+  Widget _chipsVista() {
+    return Wrap(
+      spacing: 8,
+      children: [
+        _chipVista('Todos', _VistaMovimientos.todos),
+        _chipVista('Pendientes', _VistaMovimientos.pendientes),
+        _chipVista('Pagados', _VistaMovimientos.pagados),
+        _chipVista('Recurrentes', _VistaMovimientos.recurrentes),
+      ],
+    );
+  }
+
+  Widget _chipVista(String texto, _VistaMovimientos vista) {
+    final elegido = _vista == vista;
+    return ChoiceChip(
+      label: Text(texto),
+      selected: elegido,
+      showCheckmark: false,
+      selectedColor: Colores.verdeClaro,
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: elegido ? Colores.verdeOscuro : Colores.azulOscuro,
+        fontWeight: elegido ? FontWeight.w700 : FontWeight.w500,
+      ),
+      side: BorderSide(
+        color: elegido ? Colores.verdeOscuro : Colores.verdeClaro,
+      ),
+      onSelected: (_) => setState(() => _vista = vista),
+    );
+  }
+
+  // Total de la lista visible según el chip seleccionado
   Widget _lineaTotales() {
-    final t = _totales;
-    if (t == null || _cargandoLista) return const SizedBox.shrink();
+    final t = _totalesDe(_visibles);
+    if (_cargandoLista) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -462,8 +530,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         child: CircularProgressIndicator(color: Colores.verdeOscuro),
       );
     }
-    if (_movimientos.isEmpty) {
-      // Con filtros: ninguno coincide. Sin filtros: aún no hay movimientos.
+
+    final movimientos = _visibles;
+    if (movimientos.isEmpty) {
       if (_filtros.hayFiltros) {
         return Center(
           child: Column(
@@ -489,6 +558,49 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
           ),
         );
       }
+
+      if (_vista == _VistaMovimientos.recurrentes) {
+        return const Center(
+          child: Text(
+            'No tienes gastos recurrentes.\nCrea uno desde Nuevo movimiento.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      if (_vista == _VistaMovimientos.pendientes) {
+        return const Center(
+          child: Text(
+            'No tienes movimientos pendientes.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      if (_vista == _VistaMovimientos.pagados) {
+        return const Center(
+          child: Text(
+            'No tienes movimientos pagados.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
       return const Center(
         child: Text(
           'Aún no tienes movimientos.\nCrea el primero con el botón de abajo.',
@@ -501,11 +613,70 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         ),
       );
     }
-    return ListView.separated(
+
+    final ahora = DateTime.now();
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final grupos = <String, List<Movimiento>>{
+      'Vencidos': [],
+      'Hoy': [],
+      'Próximos': [],
+      'Anteriores': [],
+    };
+
+    for (final movimiento in movimientos) {
+      final fecha = DateTime(
+        movimiento.fecha.year,
+        movimiento.fecha.month,
+        movimiento.fecha.day,
+      );
+
+      if (fecha.isBefore(hoy)) {
+        if (movimiento.estado == EstadoMovimiento.pendiente) {
+          grupos['Vencidos']!.add(movimiento);
+        } else {
+          grupos['Anteriores']!.add(movimiento);
+        }
+      } else if (fecha.isAtSameMomentAs(hoy)) {
+        grupos['Hoy']!.add(movimiento);
+      } else {
+        grupos['Próximos']!.add(movimiento);
+      }
+    }
+
+    final widgets = <Widget>[];
+    for (final grupo in grupos.entries) {
+      if (grupo.value.isEmpty) continue;
+
+      if (grupo.key == 'Próximos') {
+        grupo.value.sort((a, b) => a.fecha.compareTo(b.fecha));
+      } else {
+        grupo.value.sort((a, b) => b.fecha.compareTo(a.fecha));
+      }
+
+      widgets.add(_encabezadoGrupo(grupo.key, grupo.value.length));
+      for (final movimiento in grupo.value) {
+        widgets.add(_tarjeta(movimiento));
+        widgets.add(const SizedBox(height: 12));
+      }
+    }
+
+    return ListView(
       padding: const EdgeInsets.only(bottom: 96),
-      itemCount: _movimientos.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _tarjeta(_movimientos[i]),
+      children: widgets,
+    );
+  }
+
+  Widget _encabezadoGrupo(String titulo, int cantidad) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
+      child: Text(
+        '$titulo ($cantidad)',
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Colores.azulOscuro,
+        ),
+      ),
     );
   }
 
