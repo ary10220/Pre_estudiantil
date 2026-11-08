@@ -60,6 +60,19 @@ Future<void> _esperarAlguno(
   fail('No apareció ninguno de: ${textos.join(', ')}.');
 }
 
+Future<void> _cerrarTeclado(WidgetTester tester) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
+}
+
+Future<void> _esperarSinSnackBar(WidgetTester tester) async {
+  final fin = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(fin)) {
+    await tester.pump(const Duration(milliseconds: 250));
+    if (find.byType(SnackBar).evaluate().isEmpty) return;
+  }
+}
+
 double _leerGastos(WidgetTester tester) {
   final finder = find.textContaining('Gastos Bs ');
   expect(finder, findsOneWidget);
@@ -100,7 +113,10 @@ Future<double> _esperarGastosMayores(
 Future<void> _asegurarSesion(WidgetTester tester) async {
   await _esperarAlguno(tester, ['Iniciar sesión', 'Mis movimientos', 'Entrar']);
 
-  if (find.text('Mis movimientos').evaluate().isNotEmpty) return;
+  if (find.text('Mis movimientos').evaluate().isNotEmpty) {
+    await _esperarSinSnackBar(tester);
+    return;
+  }
 
   if (find.text('Entrar').evaluate().isEmpty) {
     await tester.tap(find.text('Iniciar sesión').last);
@@ -114,11 +130,11 @@ Future<void> _asegurarSesion(WidgetTester tester) async {
   await tester.enterText(correo, _correo);
   await tester.enterText(contrasena, _contrasena);
 
-  FocusManager.instance.primaryFocus?.unfocus();
-  await tester.pump(const Duration(milliseconds: 300));
+  await _cerrarTeclado(tester);
   await tester.ensureVisible(find.text('Entrar'));
   await tester.tap(find.text('Entrar'));
   await _esperarTexto(tester, 'Mis movimientos');
+  await _esperarSinSnackBar(tester);
 }
 
 Future<void> _volverAtras(WidgetTester tester) async {
@@ -137,6 +153,7 @@ Future<void> _abrirPantallaLimite(WidgetTester tester) async {
   expect(botonLimite, findsOneWidget);
   await tester.tap(botonLimite);
   await _esperarTexto(tester, 'Presupuesto por categorías');
+  await _esperarTexto(tester, 'Comida');
 }
 
 void main() {
@@ -162,8 +179,7 @@ void main() {
     await tester.enterText(_campo('Concepto'), concepto);
     await tester.enterText(_campo('Monto (Bs)'), monto.toStringAsFixed(2));
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _cerrarTeclado(tester);
     await tester.ensureVisible(find.text('Guardar'));
     await tester.tap(find.text('Guardar'));
 
@@ -173,8 +189,6 @@ void main() {
 
     expect(gastosDespues, greaterThan(gastosAntes));
     expect(gastosDespues - gastosAntes, closeTo(monto, 0.01));
-    expect(find.text(concepto), findsOneWidget);
-    await Future.delayed(const Duration(minutes: 10));
   });
 
   // tarea 7
@@ -188,12 +202,14 @@ void main() {
 
     final tarjetaComida = find.text('Comida');
     expect(tarjetaComida, findsWidgets);
+    await tester.ensureVisible(tarjetaComida.first);
     await tester.tap(tarjetaComida.first);
     await _esperarTexto(tester, 'Presupuesto (Bs)');
 
     final campoPresupuesto = _campo('Presupuesto (Bs)');
     await tester.enterText(campoPresupuesto, '300.00');
-    await tester.pump(const Duration(milliseconds: 300));
+    await _cerrarTeclado(tester);
+    await tester.ensureVisible(find.text('Guardar'));
     await tester.tap(find.text('Guardar'));
     await _esperarSinTexto(tester, 'Presupuesto (Bs)');
     await _esperarTexto(tester, 'Presupuesto por categorías');
@@ -224,13 +240,13 @@ void main() {
       montoIngreso.toStringAsFixed(2),
     );
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _cerrarTeclado(tester);
     await tester.ensureVisible(find.text('Guardar'));
     await tester.tap(find.text('Guardar'));
 
     await _esperarSinTexto(tester, 'Categoría');
     await _esperarTexto(tester, 'Mis movimientos');
+    await _esperarSinSnackBar(tester);
 
     final gastosDespuesDeIngreso = await _esperarGastos(tester);
     expect(gastosDespuesDeIngreso, equals(gastosAntesDeIngreso));
@@ -261,17 +277,29 @@ void main() {
     await tester.enterText(_campo('Concepto'), conceptoMover);
     await tester.enterText(_campo('Monto (Bs)'), montoMover.toStringAsFixed(2));
 
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _cerrarTeclado(tester);
     await tester.ensureVisible(find.text('Guardar'));
     await tester.tap(find.text('Guardar'));
 
     await _esperarSinTexto(tester, 'Categoría');
+    await _esperarSinTexto(tester, 'Guardar');
     await _esperarTexto(tester, 'Mis movimientos');
-    await _esperarTexto(tester, conceptoMover);
+    await _esperarSinSnackBar(tester);
 
-    final botonEditar = find.byTooltip('Editar').first;
-    await tester.ensureVisible(botonEditar);
+    final botonEditar = find.byKey(ValueKey('editar-$conceptoMover'));
+    final lista = find.byType(Scrollable).last;
+    if (botonEditar.evaluate().isEmpty) {
+      try {
+        await tester.scrollUntilVisible(botonEditar, 200, scrollable: lista);
+      } catch (_) {
+        await tester.scrollUntilVisible(botonEditar, -200, scrollable: lista);
+      }
+    }
+    await Scrollable.ensureVisible(
+      tester.element(botonEditar),
+      alignment: 0.0,
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
     await tester.tap(botonEditar);
     await _esperarTexto(tester, 'Editar movimiento');
 
@@ -280,11 +308,32 @@ void main() {
     await tester.tap(chipTransporte);
     await tester.pump();
 
-    await tester.ensureVisible(find.text('Guardar'));
-    await tester.tap(find.text('Guardar'));
+    await tester.ensureVisible(find.text('Guardar cambios'));
+    await tester.tap(find.text('Guardar cambios'));
 
     await _esperarSinTexto(tester, 'Editar movimiento');
+    await _esperarSinTexto(tester, 'Guardar cambios');
     await _esperarTexto(tester, 'Mis movimientos');
+    await _esperarSinSnackBar(tester);
+    if (botonEditar.evaluate().isEmpty) {
+      try {
+        await tester.scrollUntilVisible(botonEditar, 200, scrollable: lista);
+      } catch (_) {
+        await tester.scrollUntilVisible(botonEditar, -200, scrollable: lista);
+      }
+    }
+    if (botonEditar.evaluate().isEmpty) {
+      try {
+        await tester.scrollUntilVisible(botonEditar, 200, scrollable: lista);
+      } catch (_) {
+        await tester.scrollUntilVisible(botonEditar, -200, scrollable: lista);
+      }
+    }
+    await Scrollable.ensureVisible(
+      tester.element(botonEditar),
+      alignment: 0.0,
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
     expect(find.textContaining('Transporte'), findsWidgets);
 

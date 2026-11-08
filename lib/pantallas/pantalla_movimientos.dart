@@ -899,6 +899,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               ),
               const Spacer(),
               IconButton(
+                key: ValueKey('editar-${m.concepto}'),
                 tooltip: 'Editar',
                 icon: const Icon(
                   Icons.edit_outlined,
@@ -907,6 +908,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                 onPressed: () => _editar(m),
               ),
               IconButton(
+                key: ValueKey('eliminar-${m.concepto}'),
                 tooltip: 'Eliminar',
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                 onPressed: () => _eliminar(m),
