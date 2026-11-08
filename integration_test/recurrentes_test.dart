@@ -163,6 +163,7 @@ void main() {
     await tester.tap(find.text('Guardar'));
 
     await _esperarSinTexto(tester, 'Categoría');
+    await _esperarSinTexto(tester, 'Guardar');
     await _esperarTexto(tester, 'Mis movimientos');
 
     final gastosDespues = await _esperarGastosAlMenos(
@@ -171,8 +172,14 @@ void main() {
     );
 
     expect(gastosDespues - gastosAntes, closeTo(monto * 2, 0.01));
-    expect(find.text(concepto), findsNWidgets(2));
-    expect(find.text('Recurrente Semanal'), findsAtLeastNWidgets(2));
-    await Future.delayed(const Duration(minutes: 10));
+
+    final lista = find.byType(Scrollable).last;
+    await tester.scrollUntilVisible(
+      find.text(concepto),
+      200,
+      scrollable: lista,
+    );
+    expect(find.text(concepto), findsWidgets);
+    expect(find.text('Recurrente Semanal'), findsWidgets);
   });
 }

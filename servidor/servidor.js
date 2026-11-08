@@ -25,6 +25,15 @@ const {
 const { validarCorreo } = require('./correo');
 const { FILTROS: FILTROS_HISTORIAL, armarHistorial } = require('./historial');
 const { FRECUENCIAS, sumarFrecuencia } = require('./recurrentes');
+const {
+  validarMontoMeta,
+  validarNombreMeta,
+  validarFechaMeta,
+  calcularSaldos,
+  validarAsignacion,
+  validarRetiro,
+  validarTransferencia,
+} = require('./metas');
 
 const app = express();
 app.use(cors());
@@ -51,6 +60,53 @@ function formatearMovimiento(movimiento) {
     recurrente: Boolean(movimiento.recurrenciaId),
     frecuencia: movimiento.recurrencia?.frecuencia ?? null,
   };
+}
+
+function formatearMeta(meta) {
+  const objetivo = Number(meta.montoObjetivo);
+  const reservado = Number(meta.montoReservado);
+  return {
+    id: meta.id,
+    nombre: meta.nombre,
+    montoObjetivo: objetivo,
+    fechaObjetivo: fechaATexto(meta.fechaObjetivo),
+    montoReservado: reservado,
+    progreso: objetivo > 0 ? Math.min(reservado / objetivo, 1) : 0,
+  };
+}
+
+function formatearMovimientoMeta(movimiento) {
+  return {
+    id: movimiento.id,
+    tipo: movimiento.tipo,
+    monto: Number(movimiento.monto),
+    metaRelacionada: movimiento.metaRelacionada?.nombre ?? null,
+    creadoEn: movimiento.creadoEn,
+  };
+}
+
+async function calcularResumenMetas(usuarioId, cliente = prisma) {
+  const ingresos = await cliente.movimiento.aggregate({
+    _sum: { monto: true },
+    where: { usuarioId, tipo: 'ingreso' },
+  });
+  const gastos = await cliente.movimiento.aggregate({
+    _sum: { monto: true },
+    where: { usuarioId, tipo: 'gasto' },
+  });
+  const reservado = await cliente.metaAhorro.aggregate({
+    _sum: { montoReservado: true },
+    where: { usuarioId },
+  });
+
+  return calcularSaldos({
+    ingresos: ingresos._sum.monto === null ? 0 : Number(ingresos._sum.monto),
+    gastos: gastos._sum.monto === null ? 0 : Number(gastos._sum.monto),
+    reservado:
+      reservado._sum.montoReservado === null
+        ? 0
+        : Number(reservado._sum.montoReservado),
+  });
 }
 
 // ---------- Protección: exige una sesión válida ----------
@@ -726,6 +782,240 @@ app.get('/presupuestos-categoria', exigirSesion, async (req, res) => {
   res.json({ mes: mes.slice(0, 7), categorias });
 });
 
+
+// ---------- Metas de ahorro ----------
+app.get('/metas', exigirSesion, async (req, res) => {
+  const metas = await prisma.metaAhorro.findMany({
+    where: { usuarioId: req.usuario.id },
+    orderBy: { creadoEn: 'asc' },
+  });
+  const resumen = await calcularResumenMetas(req.usuario.id);
+  res.json({ metas: metas.map(formatearMeta), resumen });
+});
+
+app.post('/metas', exigirSesion, async (req, res) => {
+  const nombre = validarNombreMeta(req.body.nombre);
+  if (!nombre.ok) return res.status(400).json({ error: nombre.error });
+
+  const monto = validarMontoMeta(req.body.montoObjetivo, 'monto objetivo');
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const fecha = validarFechaMeta(req.body.fechaObjetivo);
+  if (!fecha.ok) return res.status(400).json({ error: fecha.error });
+
+  try {
+    const meta = await prisma.metaAhorro.create({
+      data: {
+        usuarioId: req.usuario.id,
+        nombre: nombre.nombre,
+        montoObjetivo: new Prisma.Decimal(monto.monto),
+        fechaObjetivo: fecha.fecha,
+      },
+    });
+    const resumen = await calcularResumenMetas(req.usuario.id);
+    res.status(201).json({ meta: formatearMeta(meta), resumen });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Ya tienes una meta con ese nombre' });
+    }
+    throw error;
+  }
+});
+
+app.post('/metas/:id/asignar', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const meta = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    if (!meta) return { status: 404, error: 'Meta no encontrada' };
+
+    const resumen = await calcularResumenMetas(req.usuario.id, tx);
+    const control = validarAsignacion({
+      disponible: resumen.disponible,
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const actualizada = await tx.metaAhorro.update({
+      where: { id },
+      data: {
+        montoReservado: { increment: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.create({
+      data: {
+        usuarioId: req.usuario.id,
+        metaId: id,
+        tipo: 'asignacion',
+        monto: new Prisma.Decimal(monto.monto),
+      },
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return { meta: actualizada, resumen: nuevoResumen };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({ meta: formatearMeta(resultado.meta), resumen: resultado.resumen });
+});
+
+app.post('/metas/:id/retirar', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const meta = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    if (!meta) return { status: 404, error: 'Meta no encontrada' };
+
+    const control = validarRetiro({
+      reservado: Number(meta.montoReservado),
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const actualizada = await tx.metaAhorro.update({
+      where: { id },
+      data: {
+        montoReservado: { decrement: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.create({
+      data: {
+        usuarioId: req.usuario.id,
+        metaId: id,
+        tipo: 'retiro',
+        monto: new Prisma.Decimal(monto.monto),
+      },
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return { meta: actualizada, resumen: nuevoResumen };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({ meta: formatearMeta(resultado.meta), resumen: resultado.resumen });
+});
+
+app.post('/metas/:id/transferir', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  const metaDestinoId = Number(req.body.metaDestinoId);
+  if (!Number.isInteger(id) || !Number.isInteger(metaDestinoId)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+  if (id === metaDestinoId) {
+    return res.status(400).json({ error: 'Elige una meta de destino distinta' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const origen = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    const destino = await tx.metaAhorro.findFirst({
+      where: { id: metaDestinoId, usuarioId: req.usuario.id },
+    });
+    if (!origen || !destino) {
+      return { status: 404, error: 'Meta no encontrada' };
+    }
+
+    const control = validarTransferencia({
+      reservado: Number(origen.montoReservado),
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const origenActualizado = await tx.metaAhorro.update({
+      where: { id: origen.id },
+      data: {
+        montoReservado: { decrement: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    const destinoActualizado = await tx.metaAhorro.update({
+      where: { id: destino.id },
+      data: {
+        montoReservado: { increment: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.createMany({
+      data: [
+        {
+          usuarioId: req.usuario.id,
+          metaId: origen.id,
+          metaRelacionadaId: destino.id,
+          tipo: 'transferencia_salida',
+          monto: new Prisma.Decimal(monto.monto),
+        },
+        {
+          usuarioId: req.usuario.id,
+          metaId: destino.id,
+          metaRelacionadaId: origen.id,
+          tipo: 'transferencia_entrada',
+          monto: new Prisma.Decimal(monto.monto),
+        },
+      ],
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return {
+      meta: origenActualizado,
+      metaDestino: destinoActualizado,
+      resumen: nuevoResumen,
+    };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({
+    meta: formatearMeta(resultado.meta),
+    metaDestino: formatearMeta(resultado.metaDestino),
+    resumen: resultado.resumen,
+  });
+});
+
+app.get('/metas/:id/movimientos', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const meta = await prisma.metaAhorro.findFirst({
+    where: { id, usuarioId: req.usuario.id },
+    select: { id: true },
+  });
+  if (!meta) {
+    return res.status(404).json({ error: 'Meta no encontrada' });
+  }
+
+  const filas = await prisma.movimientoMeta.findMany({
+    where: { usuarioId: req.usuario.id, metaId: id },
+    include: { metaRelacionada: { select: { nombre: true } } },
+    orderBy: { creadoEn: 'desc' },
+  });
+  res.json({ movimientos: filas.map(formatearMovimientoMeta) });
+});
 
 // ---------- Historial de actividad (Tarea 4) ----------
 app.get('/historial', exigirSesion, async (req, res) => {

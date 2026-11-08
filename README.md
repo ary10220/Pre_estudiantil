@@ -62,7 +62,7 @@ Los pasos completos, la configuración de IP por plataforma y las pruebas de int
 |---|---|
 | prueba@correo.com | 123456 |
 
-La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si el usuario ya existe, no se duplica.
+La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si el usuario ya existe, no se duplica. También deja dos metas de prueba: `Fondo de emergencia` y `Viaje`.
 
 ## Funcionalidades
 
@@ -70,6 +70,7 @@ La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si 
 - Movimientos: crear, marcar como pagado, editar y eliminar; búsqueda y filtros.
 - Límite mensual: definir y consultar el límite; aviso al superarlo.
 - Recurrentes: gastos semanales o mensuales que generan la siguiente ocurrencia y cuentan en el presupuesto.
+- Metas de ahorro: crear metas, asignar, retirar y transferir fondos reservados sin alterar ingresos ni gastos.
 - Historial: eventos agrupados por día y filtros (Todos, Gastos, Pagos, Límite).
 
 ## Pruebas

@@ -6,9 +6,11 @@ import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/filtros.dart';
 import '../modelos/limite.dart';
+import '../modelos/meta_ahorro.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
 import '../servicios/servicio_limite.dart';
+import '../servicios/servicio_metas.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/campo_texto.dart';
 import '../widgets/hoja_filtros.dart';
@@ -30,6 +32,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   List<Movimiento> _movimientos = [];
   bool _cargandoLista = true;
   ResumenLimite? _resumen;
+  ResumenMetas? _resumenMetas;
   List<PresupuestoCategoria> _categorias = [];
   _VistaMovimientos _vista = _VistaMovimientos.todos;
 
@@ -81,10 +84,22 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       final listado = await ServicioMovimientos.listar(_filtros);
       final resumen = await ServicioLimite.leer();
       final categorias = await ServicioLimite.leerPorCategoria();
+
+      ResumenMetas? resumenMetas;
+      try {
+        final metas = await ServicioMetas.listar();
+        resumenMetas = metas.resumen;
+      } on SesionExpirada {
+        rethrow;
+      } on ErrorAcceso {
+        // La pantalla sigue funcionando aunque falle el resumen de metas.
+      }
+
       if (!mounted || numero != _peticion) return;
       setState(() {
         _movimientos = listado.movimientos;
         _resumen = resumen;
+        _resumenMetas = resumenMetas;
         _categorias = categorias;
         _cargandoLista = false;
       });
@@ -148,6 +163,11 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
 
   Future<void> _abrirHistorial() async {
     await Navigator.pushNamed(context, Rutas.historial);
+  }
+
+  Future<void> _abrirMetas() async {
+    await Navigator.pushNamed(context, Rutas.metas);
+    await _cargarMovimientos();
   }
 
   // Editar: abre el mismo formulario con los datos del movimiento
@@ -339,6 +359,10 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             // Sin límite definido no se muestra
             if (_resumen?.tieneLimite ?? false) ...[
               _tarjetaLimite(_resumen!),
+              const SizedBox(height: 16),
+            ],
+            if (_resumenMetas != null) ...[
+              _tarjetaMetas(),
               const SizedBox(height: 16),
             ],
             _chipsVista(),
@@ -680,6 +704,60 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     );
   }
 
+  Widget _tarjetaMetas() {
+    final resumen = _resumenMetas!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.savings_outlined, color: Colores.verdeOscuro),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Metas de ahorro',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colores.azulOscuro,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _abrirMetas,
+                child: const Text(
+                  'Ver metas',
+                  style: TextStyle(color: Colores.verdeOscuro),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Disponible ${resumen.disponibleTexto}',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colores.verdeOscuro,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Reservado ${resumen.reservadoTexto}',
+            style: const TextStyle(color: Colores.grisAzulado),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _tarjetaLimite(ResumenLimite r) {
     final color = r.enAviso ? Colores.aviso : Colores.verdeOscuro;
     final restante = r.restante!;
@@ -821,6 +899,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               ),
               const Spacer(),
               IconButton(
+                key: ValueKey('editar-${m.concepto}'),
                 tooltip: 'Editar',
                 icon: const Icon(
                   Icons.edit_outlined,
@@ -829,6 +908,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                 onPressed: () => _editar(m),
               ),
               IconButton(
+                key: ValueKey('eliminar-${m.concepto}'),
                 tooltip: 'Eliminar',
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                 onPressed: () => _eliminar(m),
