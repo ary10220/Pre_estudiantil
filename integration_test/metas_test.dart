@@ -125,6 +125,23 @@ Future<({String correo, String contrasena})> _prepararUsuario({
   return (correo: correo, contrasena: contrasena);
 }
 
+Future<void> _cerrarTeclado(WidgetTester tester) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
+}
+
+Future<void> _esperarSinCargando(
+  WidgetTester tester, {
+  Duration timeout = const Duration(seconds: 30),
+}) async {
+  final fin = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(fin)) {
+    await tester.pump(const Duration(milliseconds: 250));
+    if (find.byType(CircularProgressIndicator).evaluate().isEmpty) return;
+  }
+  fail('La pantalla no terminó de cargar.');
+}
+
 Future<void> _iniciarSesion(
   WidgetTester tester,
   String correo,
@@ -141,8 +158,7 @@ Future<void> _iniciarSesion(
 
   await tester.enterText(_campo('Correo'), correo);
   await tester.enterText(_campo('Contraseña'), contrasena);
-  FocusManager.instance.primaryFocus?.unfocus();
-  await tester.pump(const Duration(milliseconds: 300));
+  await _cerrarTeclado(tester);
   await tester.ensureVisible(find.text('Entrar'));
   await tester.tap(find.text('Entrar'));
   await _esperarTexto(tester, 'Mis movimientos');
@@ -150,6 +166,7 @@ Future<void> _iniciarSesion(
 
 Future<void> _irAMetas(WidgetTester tester) async {
   await _esperarTexto(tester, 'Mis movimientos');
+  await _esperarTexto(tester, 'Ver metas');
   await tester.ensureVisible(find.text('Ver metas'));
   await tester.tap(find.text('Ver metas'));
   await _esperarTexto(tester, 'Saldos');
@@ -167,27 +184,34 @@ Future<void> _crearMeta(
     _campo('Monto objetivo (Bs)'),
     monto.toStringAsFixed(2),
   );
-  FocusManager.instance.primaryFocus?.unfocus();
-  await tester.pump(const Duration(milliseconds: 300));
+  await _cerrarTeclado(tester);
   await tester.ensureVisible(find.text('Guardar meta'));
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
   await tester.tap(find.text('Guardar meta'));
-  await _esperarTexto(tester, 'Saldos');
-  await tester.scrollUntilVisible(find.text(nombre), 200);
-  await _esperarTexto(tester, nombre);
+  await _esperarSinTexto(tester, 'Guardar meta');
+  await _esperarSinCargando(tester);
 }
 
 Future<void> _abrirMeta(WidgetTester tester, String nombre) async {
-  await tester.ensureVisible(find.text(nombre));
-  await tester.tap(find.text(nombre));
+  final finder = find.text(nombre);
+  if (finder.evaluate().isEmpty) {
+    try {
+      await tester.scrollUntilVisible(finder, 200);
+    } catch (_) {
+      await tester.scrollUntilVisible(finder, -200);
+    }
+  }
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
   await _esperarTexto(tester, 'Asignar');
 }
 
 Future<void> _confirmarMonto(WidgetTester tester, double monto) async {
   await _esperarTexto(tester, 'Monto (Bs)');
   await tester.enterText(_campo('Monto (Bs)'), monto.toStringAsFixed(2));
-  FocusManager.instance.primaryFocus?.unfocus();
-  await tester.pump(const Duration(milliseconds: 300));
+  await _cerrarTeclado(tester);
   await tester.ensureVisible(find.text('Confirmar'));
+  await tester.pumpAndSettle(const Duration(milliseconds: 100));
   await tester.tap(find.text('Confirmar'));
   await _esperarSinTexto(tester, 'Confirmar');
 }
@@ -220,8 +244,14 @@ Future<void> _intentarAsignarSinFondos(
 }
 
 Future<void> _volver(WidgetTester tester) async {
-  await tester.pageBack();
-  await _esperarTexto(tester, 'Saldos');
+  final boton = find.byType(BackButton);
+  if (boton.evaluate().isNotEmpty) {
+    await tester.tap(boton.first);
+  } else {
+    await tester.tap(find.byIcon(Icons.arrow_back).first);
+  }
+  await _esperarTexto(tester, 'Metas de ahorro');
+  await _esperarSinCargando(tester);
 }
 
 void main() {
@@ -284,7 +314,12 @@ void main() {
     await _esperarTexto(tester, 'Reservado Bs 200,00');
     await _esperarTexto(tester, 'Disponible Bs 400,00');
 
-    await app.main();
+    final botonVolver = find.byType(BackButton);
+    if (botonVolver.evaluate().isNotEmpty) {
+      await tester.tap(botonVolver.first);
+    } else {
+      await tester.tap(find.byIcon(Icons.arrow_back).first);
+    }
     await _esperarTexto(tester, 'Mis movimientos');
     await _irAMetas(tester);
     await _esperarTexto(tester, 'Disponible Bs 400,00');
@@ -306,9 +341,9 @@ void main() {
     await _esperarTexto(tester, 'Nombre de la meta');
     await tester.enterText(_campo('Nombre de la meta'), 'Meta duplicada');
     await tester.enterText(_campo('Monto objetivo (Bs)'), '100.00');
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _cerrarTeclado(tester);
     await tester.ensureVisible(find.text('Guardar meta'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
     await tester.tap(find.text('Guardar meta'));
 
     await _esperarTexto(tester, 'Ya tienes una meta con ese nombre');

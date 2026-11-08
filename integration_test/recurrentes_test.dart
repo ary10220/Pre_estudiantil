@@ -173,6 +173,5 @@ void main() {
     expect(gastosDespues - gastosAntes, closeTo(monto * 2, 0.01));
     expect(find.text(concepto), findsNWidgets(2));
     expect(find.text('Recurrente Semanal'), findsAtLeastNWidgets(2));
-    await Future.delayed(const Duration(minutes: 10));
   });
 }
