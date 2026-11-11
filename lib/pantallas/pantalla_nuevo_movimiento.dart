@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +8,7 @@ import '../configuracion/rutas.dart';
 import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
+import '../servicios/servicio_analitica.dart';
 import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/boton_pildora.dart';
@@ -82,6 +85,13 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     _categoriaInicial = _categoria;
     _frecuenciaInicial = _frecuencia;
     _fechaInicial = _fecha;
+    if (widget.movimiento == null) {
+      unawaited(
+        ServicioAnalitica.track('movimiento_iniciado', {
+          'pantalla': 'nuevo_movimiento',
+        }),
+      );
+    }
     _cargarResumen();
   }
 
@@ -348,6 +358,12 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
           _categoria!,
           recurrente: _frecuencia != null,
           frecuencia: _frecuencia,
+        );
+        unawaited(
+          ServicioAnalitica.track('movimiento_guardado', {
+            'pantalla': 'nuevo_movimiento',
+            'tipo': _tipo.name,
+          }),
         );
       }
       if (!mounted) return;

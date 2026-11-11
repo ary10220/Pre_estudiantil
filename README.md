@@ -73,6 +73,15 @@ La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si 
 - Metas de ahorro: crear metas, asignar, retirar y transferir fondos reservados sin alterar ingresos ni gastos.
 - Historial: eventos agrupados por día y filtros (Todos, Gastos, Pagos, Límite).
 
+## Analítica
+
+- Eventos del flujo principal:
+  - `movimiento_iniciado` al abrir el formulario de nuevo movimiento.
+  - `movimiento_guardado` al guardar correctamente un movimiento.
+- Se guardan en la tabla `eventos` con propiedades mínimas: `pantalla` y `tipo` cuando corresponde. No se guardan email, descripción ni monto.
+- Panel: `GET /analitica`; imprime la fecha en hora boliviana (`America/La_Paz`) y los conteos, separados con `###############`. Devuelve `{ fecha, iniciados, completados }`.
+- Decisión: si la diferencia entre inicios y éxitos es alta, revisar el formulario para reducir la fricción del flujo.
+
 ## Pruebas
 
 Unitarias de Flutter:
