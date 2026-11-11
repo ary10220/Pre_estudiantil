@@ -34,6 +34,7 @@ const {
   validarRetiro,
   validarTransferencia,
 } = require('./metas');
+const { EVENTOS, fechaBolivia, validarEvento } = require('./analitica');
 
 const app = express();
 app.use(cors());
@@ -129,6 +130,38 @@ async function exigirSesion(req, res, next) {
 
 // ---------- Ruta pública ----------
 app.get('/ping', (req, res) => res.json({ mensaje: 'Servidor funcionando' }));
+
+// ---------- Analítica ----------
+app.get('/analitica', async (req, res) => {
+  const [iniciados, completados] = await Promise.all([
+    prisma.evento.count({ where: { tipo: 'movimiento_iniciado' } }),
+    prisma.evento.count({ where: { tipo: 'movimiento_guardado' } }),
+  ]);
+  const fecha = fechaBolivia();
+  console.log("###############");
+  console.log(`Fecha ${fecha}`);
+  console.log(`Iniciados ${iniciados} - Completados ${completados}`);
+  console.log("###############");
+  res.json({ fecha, iniciados, completados });
+});
+
+app.post('/analitica/eventos', exigirSesion, async (req, res) => {
+  const evento = String(req.body.evento || '');
+  const validacion = validarEvento(evento, req.body.propiedades);
+  if (!validacion.ok) {
+    return res.status(400).json({ error: validacion.error });
+  }
+
+  await prisma.evento.create({
+    data: {
+      usuarioId: req.usuario.id,
+      tipo: evento,
+      propiedades: validacion.propiedades,
+    },
+  });
+
+  res.status(201).json({ ok: true });
+});
 
 // ---------- Registro ----------
 app.post('/registro', async (req, res) => {
@@ -1025,7 +1058,10 @@ app.get('/historial', exigirSesion, async (req, res) => {
   }
 
   const filas = await prisma.evento.findMany({
-    where: { usuarioId: req.usuario.id },
+    where: {
+      usuarioId: req.usuario.id,
+      tipo: { notIn: Object.keys(EVENTOS) },
+    },
     orderBy: { creadoEn: 'desc' },
     take: 50,
   });

@@ -124,6 +124,7 @@ model Evento {
   movimientoId Int?     @map("movimiento_id")
   monto        Decimal? @db.Decimal(12, 2)
   descripcion  String?  @db.VarChar(200)
+  propiedades  Json?
   creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamp(6)
 
   usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
