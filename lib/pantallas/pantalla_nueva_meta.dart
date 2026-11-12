@@ -9,6 +9,7 @@ import '../servicios/servicio_movimientos.dart';
 import '../widgets/boton_pildora.dart';
 import '../widgets/campo_texto.dart';
 import '../widgets/mensajes.dart';
+import '../servicios/analitica.dart';
 
 class PantallaNuevaMeta extends StatefulWidget {
   const PantallaNuevaMeta({super.key});
@@ -32,6 +33,8 @@ class _PantallaNuevaMetaState extends State<PantallaNuevaMeta> {
     final hoy = DateTime.now();
     _fecha = DateTime(hoy.year, hoy.month + 3, hoy.day);
     _fechaTexto.text = Movimiento.formatearFecha(_fecha);
+    // Analitica, usuario inicia creacion de meta de ahorro
+    AnaliticaServicio.track('meta_creacion_iniciada', {});
   }
 
   @override
@@ -74,6 +77,8 @@ class _PantallaNuevaMetaState extends State<PantallaNuevaMeta> {
     setState(() => _cargando = true);
     try {
       await ServicioMetas.crear(nombre, monto!, _fecha);
+      // Analitica, meta guardada con exito tras respuesta de base de datos
+      AnaliticaServicio.track('meta_guardada', {});
       if (!mounted) return;
       mostrarMensaje(context, 'Meta creada');
       Navigator.pop(context, true);

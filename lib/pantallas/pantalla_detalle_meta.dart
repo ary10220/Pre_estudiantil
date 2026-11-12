@@ -8,6 +8,7 @@ import '../servicios/servicio_metas.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/mensajes.dart';
 import '../widgets/resumen_metas_card.dart';
+import '../servicios/analitica.dart';
 
 class PantallaDetalleMeta extends StatefulWidget {
   final MetaAhorro meta;
@@ -269,7 +270,11 @@ class _PantallaDetalleMetaState extends State<PantallaDetalleMeta> {
     );
     if (monto == null) return;
     await _operar(
-      () => ServicioMetas.asignar(_meta.id, monto),
+      () async {
+        final res = await ServicioMetas.asignar(_meta.id, monto);
+        AnaliticaServicio.track('fondos_meta_operados', {'operacion': 'asignar'});
+        return res;
+      },
       'Fondos asignados',
     );
   }
@@ -281,7 +286,11 @@ class _PantallaDetalleMetaState extends State<PantallaDetalleMeta> {
     );
     if (monto == null) return;
     await _operar(
-      () => ServicioMetas.retirar(_meta.id, monto),
+      () async {
+        final res = await ServicioMetas.retirar(_meta.id, monto);
+        AnaliticaServicio.track('fondos_meta_operados', {'operacion': 'retirar'});
+        return res;
+      },
       'Fondos retirados',
     );
   }
@@ -300,7 +309,11 @@ class _PantallaDetalleMetaState extends State<PantallaDetalleMeta> {
     final datos = await _pedirTransferencia(destinos);
     if (datos == null) return;
     await _operar(
-      () => ServicioMetas.transferir(_meta.id, datos.destino.id, datos.monto),
+      () async {
+        final res = await ServicioMetas.transferir(_meta.id, datos.destino.id, datos.monto);
+        AnaliticaServicio.track('fondos_meta_operados', {'operacion': 'transferir'});
+        return res;
+      },
       'Transferencia realizada',
     );
   }

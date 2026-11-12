@@ -17,6 +17,7 @@ import '../widgets/hoja_filtros.dart';
 import '../widgets/mensajes.dart';
 import 'pantalla_nuevo_movimiento.dart';
 import '../modelos/presupuesto_categoria.dart';
+import '../servicios/analitica.dart';
 
 enum _VistaMovimientos { todos, pendientes, pagados, recurrentes }
 
@@ -103,6 +104,12 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         _categorias = categorias;
         _cargandoLista = false;
       });
+
+      // Analitica, si hay filtros o texto de busqueda y la lista da 0 resultados
+      if (_movimientos.isEmpty && _filtros.hayFiltros) {
+        final origen = _filtros.buscar.isNotEmpty ? 'texto' : 'filtros';
+        AnaliticaServicio.track('busqueda_sin_resultados', {'origen': origen});
+      }
     } on SesionExpirada {
       if (!mounted) return;
       _volverAlLogin();
@@ -163,6 +170,10 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
 
   Future<void> _abrirHistorial() async {
     await Navigator.pushNamed(context, Rutas.historial);
+  }
+
+  Future<void> _abrirAnalitica() async {
+    await Navigator.pushNamed(context, Rutas.analitica);
   }
 
   Future<void> _abrirMetas() async {
@@ -327,6 +338,19 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               'Límite',
               style: TextStyle(color: Colores.verdeOscuro),
             ),
+          ),
+          // Analítica: acceso visible y alcanzable desde la app
+          TextButton.icon(
+            onPressed: _abrirAnalitica,
+            icon: const Icon(
+              Icons.analytics_outlined,
+              color: Colores.verdeOscuro,
+            ),
+            label: const Text(
+              'Analítica',
+              style: TextStyle(color: Colores.verdeOscuro),
+            ),
+            style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
