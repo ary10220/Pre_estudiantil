@@ -5,6 +5,7 @@ import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
+import '../servicios/analitica.dart';
 import '../servicios/servicio_acceso.dart';
 import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
@@ -83,6 +84,11 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     _frecuenciaInicial = _frecuencia;
     _fechaInicial = _fecha;
     _cargarResumen();
+
+    // Analítica: se dispara al abrir el formulario solo para un movimiento nuevo
+    if (widget.movimiento == null) {
+      AnaliticaServicio.track('movimiento_iniciado', {'tipo': _tipo.name});
+    }
   }
 
   @override
@@ -349,6 +355,9 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
           recurrente: _frecuencia != null,
           frecuencia: _frecuencia,
         );
+
+        // Analítica: se dispara UNA sola vez, solo DESPUÉS de confirmado en la base de datos
+        AnaliticaServicio.track('movimiento_guardado', {'tipo': _tipo.name});
       }
       if (!mounted) return;
       mostrarMensaje(
