@@ -172,9 +172,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     await Navigator.pushNamed(context, Rutas.historial);
   }
 
-  Future<void> _abrirAnalitica() async {
-    await Navigator.pushNamed(context, Rutas.analitica);
-  }
+  // Future<void> _abrirAnalitica() async {
+  //   await Navigator.pushNamed(context, Rutas.analitica);
+  // }
 
   Future<void> _abrirMetas() async {
     await Navigator.pushNamed(context, Rutas.metas);
@@ -340,18 +340,18 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             ),
           ),
           // Analítica: acceso visible y alcanzable desde la app
-          TextButton.icon(
-            onPressed: _abrirAnalitica,
-            icon: const Icon(
-              Icons.analytics_outlined,
-              color: Colores.verdeOscuro,
-            ),
-            label: const Text(
-              'Analítica',
-              style: TextStyle(color: Colores.verdeOscuro),
-            ),
-            style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
-          ),
+          // TextButton.icon(
+          //   onPressed: _abrirAnalitica,
+          //   icon: const Icon(
+          //     Icons.analytics_outlined,
+          //     color: Colores.verdeOscuro,
+          //   ),
+          //   label: const Text(
+          //     'Analítica',
+          //     style: TextStyle(color: Colores.verdeOscuro),
+          //   ),
+          //   style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+          // ),
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout, color: Colores.verdeOscuro),
