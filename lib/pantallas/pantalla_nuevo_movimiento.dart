@@ -5,6 +5,7 @@ import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/limite.dart';
 import '../modelos/movimiento.dart';
+import '../modelos/presupuesto_categoria.dart';
 import '../servicios/analitica.dart';
 import '../servicios/servicio_acceso.dart';
 import '../servicios/servicio_limite.dart';
@@ -41,6 +42,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
   String? _errorFecha;
   bool _cargando = false;
   ResumenLimite? _resumen;
+  List<PresupuestoCategoria> _presupuestosCategorias = [];
   // Mensaje del servidor cuando el gasto supera el límite (422); se queda hasta que la persona actúe
   String? _bloqueoLimite;
 
@@ -182,8 +184,17 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         : Movimiento.fechaParaServidor(_fecha!).substring(0, 7);
     try {
       final resumen = await ServicioLimite.leer(mes);
+      List<PresupuestoCategoria> presupuestos = [];
+      try {
+        presupuestos = await ServicioLimite.leerPorCategoria(mes);
+      } catch (_) {
+        // Si es que no es posible leer los presupuestos por categoria, continua con el resumen general
+      }
       if (!mounted) return;
-      setState(() => _resumen = resumen);
+      setState(() {
+        _resumen = resumen;
+        _presupuestosCategorias = presupuestos;
+      });
     } on SesionExpirada {
       // Se vuelve al login al guardar
     } on ErrorAcceso {
@@ -266,7 +277,7 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     );
   }
 
-  // Debajo del monto: cuánto queda del límite y cuánto quedaría con este gasto (H5.1)
+  // Debajo del monto, cuanto queda del limite y cuanto quedaria con este gasto
   Widget? _avisoLimite() {
     final r = _resumen;
     if (_tipo != TipoMovimiento.gasto ||
@@ -313,6 +324,108 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     );
   }
 
+  // Verifica si el gasto excede el limite de su categoria y mes
+  Map<String, dynamic>? _verificarExcesoCategoria(double montoNuevo) {
+    if (_tipo != TipoMovimiento.gasto || _categoria == null) return null;
+
+    final nombreCat = _categoria!.name;
+    final coincidencia = _presupuestosCategorias.where(
+      (p) => p.categoria.toLowerCase() == nombreCat.toLowerCase(),
+    );
+    if (coincidencia.isEmpty) return null;
+
+    final presupuesto = coincidencia.first;
+    if (!presupuesto.tieneLimite) return null;
+
+    final limite = presupuesto.limite!;
+    var gastado = presupuesto.gastado;
+
+    // Si es que se esta editando y el movimiento previo ya era gasto en esta categoria, se descuenta su monto previo
+    if (_editando &&
+        widget.movimiento!.tipo == TipoMovimiento.gasto &&
+        widget.movimiento!.categoria?.name.toLowerCase() == nombreCat.toLowerCase()) {
+      gastado = (gastado - widget.movimiento!.monto).clamp(0.0, double.infinity);
+    }
+
+    final totalResultante = gastado + montoNuevo;
+    if (totalResultante > limite) {
+      final exceso = totalResultante - limite;
+      return {
+        'presupuesto': presupuesto,
+        'exceso': exceso,
+        'categoriaTexto': _categoria!.texto,
+      };
+    }
+    return null;
+  }
+
+  // Diálogo accesible para avisar antes de superar el límite
+  Future<bool> _pedirConfirmacionSuperacionLimite({
+    required String categoriaTexto,
+    required String categoriaName,
+    required double exceso,
+  }) async {
+    // Analítica: se advierte al usuario
+    AnaliticaServicio.track('aviso_limite_mostrado', {'categoria': categoriaName});
+
+    final excesoTexto = 'Bs ${exceso.toStringAsFixed(2).replaceAll('.', ',')}';
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (contexto) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colores.rojo, size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Vas a superar el límite',
+                style: TextStyle(
+                  color: Colores.azulOscuro,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Con este gasto vas a superar el límite de la categoría $categoriaTexto por $excesoTexto.\n\n¿Deseas continuar de todas formas?',
+          style: const TextStyle(color: Colores.grisAzulado, height: 1.4, fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colores.verdeOscuro, fontWeight: FontWeight.bold),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colores.rojo,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Guardar de todas formas'),
+          ),
+        ],
+      ),
+    );
+
+    final resultado = confirmado ?? false;
+    if (resultado) {
+      AnaliticaServicio.track('aviso_limite_confirmado', {'categoria': categoriaName});
+    } else {
+      AnaliticaServicio.track('aviso_limite_cancelado', {'categoria': categoriaName});
+    }
+    return resultado;
+  }
+
   Future<void> _guardar() async {
     final concepto = _concepto.text.trim();
     final textoMonto = _monto.text.trim().replaceAll(',', '.');
@@ -333,6 +446,20 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         _errorMonto != null ||
         _errorFecha != null) {
       return;
+    }
+
+    // Parte B: Aviso antes de superar el límite de la categoría (nuevos y editados)
+    final avisoExceso = _verificarExcesoCategoria(monto!);
+    if (avisoExceso != null) {
+      final confirmado = await _pedirConfirmacionSuperacionLimite(
+        categoriaTexto: avisoExceso['categoriaTexto'] as String,
+        categoriaName: (avisoExceso['presupuesto'] as PresupuestoCategoria).categoria,
+        exceso: avisoExceso['exceso'] as double,
+      );
+      if (!confirmado) {
+        // Cancelar no cambia nada y deja seguir editando
+        return;
+      }
     }
 
     setState(() => _cargando = true);
