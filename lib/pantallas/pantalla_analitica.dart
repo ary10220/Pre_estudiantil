@@ -93,7 +93,8 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                     pasoExito: 'Guardadas: ${metas['guardadas'] ?? 0}',
                     tasaConversion: '${metas['conversion'] ?? 0.0} %',
                     tasaCaida: '${metas['caida'] ?? 0.0} %',
-                    detalleExtra: 'Operaciones de fondos: ${metas['fondosOperados'] ?? 0}',
+                    detalleExtra:
+                        'Operaciones de fondos: ${metas['fondosOperados'] ?? 0}',
                     icono: Icons.flag_outlined,
                   ),
                   const SizedBox(height: 12),
@@ -194,8 +195,37 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                   ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                pasoInicio,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colores.grisAzulado,
+                ),
+              ),
+              Text(
+                pasoExito,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colores.azulOscuro,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                'Caida: $tasaCaida',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colores.rojo,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colores.verdeClaro,
                   borderRadius: BorderRadius.circular(12),
@@ -211,20 +241,15 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(pasoInicio, style: const TextStyle(fontSize: 13, color: Colores.grisAzulado)),
-              Text(pasoExito, style: const TextStyle(fontSize: 13, color: Colores.azulOscuro, fontWeight: FontWeight.w600)),
-              Text('Caida: $tasaCaida', style: const TextStyle(fontSize: 13, color: Colores.rojo, fontWeight: FontWeight.w600)),
-            ],
-          ),
           if (detalleExtra != null) ...[
             const SizedBox(height: 6),
             Text(
               detalleExtra,
-              style: const TextStyle(fontSize: 12, color: Colores.grisAzulado, fontStyle: FontStyle.italic),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colores.grisAzulado,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ],
@@ -251,14 +276,30 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Avisos mostrados: $mostrados', style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.azulOscuro)),
-              Text('Disuasion: $disuasion %', style: const TextStyle(fontWeight: FontWeight.bold, color: Colores.verdeOscuro)),
+              Text(
+                'Avisos mostrados: $mostrados',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colores.azulOscuro,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             '• Cancelados (evito gasto): $cancelados\n• Confirmados (asumio exceso): $confirmados',
-            style: const TextStyle(fontSize: 13, color: Colores.grisAzulado, height: 1.4),
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colores.grisAzulado,
+              height: 1.4,
+            ),
+          ),
+          Text(
+            'Disuasion: $disuasion %',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colores.verdeOscuro,
+            ),
           ),
         ],
       ),
@@ -278,16 +319,33 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
         children: [
           Text(
             'Búsquedas sin resultados: $busquedasSinRes',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colores.azulOscuro),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colores.azulOscuro,
+            ),
           ),
           const SizedBox(height: 8),
-          const Text('Errores que frenaron el formulario:', style: TextStyle(fontSize: 13, color: Colores.grisAzulado)),
+          const Text(
+            'Errores que frenaron el formulario:',
+            style: TextStyle(fontSize: 13, color: Colores.grisAzulado),
+          ),
           const SizedBox(height: 4),
-          if (errores.isEmpty)
-            const Text('Sin errores registrados', style: TextStyle(fontSize: 12, color: Colores.grisAzulado, fontStyle: FontStyle.italic))
+          if (errores.length <= 1)
+            const Text(
+              'Sin errores registrados',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colores.grisAzulado,
+                fontStyle: FontStyle.italic,
+              ),
+            )
           else
             for (final entry in errores.entries)
-              Text('• ${entry.key}: ${entry.value}', style: const TextStyle(fontSize: 12, color: Colores.rojo)),
+              Text(
+                '• ${entry.key}: ${entry.value}',
+                style: const TextStyle(fontSize: 12, color: Colores.rojo),
+              ),
         ],
       ),
     );
@@ -329,7 +387,10 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                 ),
                 Text(
                   'tipo: ${props['tipo'] ?? 'desconocido'} · $fecha',
-                  style: const TextStyle(fontSize: 11, color: Colores.grisAzulado),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colores.grisAzulado,
+                  ),
                 ),
               ],
             ),
