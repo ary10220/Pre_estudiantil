@@ -10,6 +10,7 @@ import '../widgets/boton_pildora.dart';
 import '../widgets/campo_texto.dart';
 import '../widgets/mensajes.dart';
 import '../modelos/presupuesto_categoria.dart';
+import '../servicios/analitica.dart';
 
 class PantallaLimite extends StatefulWidget {
   const PantallaLimite({super.key});
@@ -39,6 +40,8 @@ class _PantallaLimiteState extends State<PantallaLimite> {
     _mesSeleccionado =
         '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}';
     _cargarLimite();
+    // Analitica, usuario abre la gestion de limites
+    AnaliticaServicio.track('limite_iniciado', {});
   }
 
   @override
@@ -148,6 +151,10 @@ class _PantallaLimiteState extends State<PantallaLimite> {
                   montoTexto: controlador.text,
                   mes: mesActual,
                 );
+                // Analitica, guardado de presupuesto por categoria
+                AnaliticaServicio.track('limite_guardado', {
+                  'alcance': 'categoria',
+                });
                 if (ctx.mounted) Navigator.pop(ctx, true);
               } catch (e) {
                 if (ctx.mounted) {
@@ -174,6 +181,8 @@ class _PantallaLimiteState extends State<PantallaLimite> {
     try {
       final guardado = await ServicioLimite.guardar(_limite.text);
       if (!mounted) return;
+      // Analitica, guardado de presupuesto general mensual
+      AnaliticaServicio.track('limite_guardado', {'alcance': 'general'});
       // La pantalla no se cierra, la confirmacion queda junto al boton
       setState(() => _guardado = guardado);
     } on SesionExpirada {

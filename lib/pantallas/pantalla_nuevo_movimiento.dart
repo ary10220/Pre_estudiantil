@@ -343,8 +343,12 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     // Si es que se esta editando y el movimiento previo ya era gasto en esta categoria, se descuenta su monto previo
     if (_editando &&
         widget.movimiento!.tipo == TipoMovimiento.gasto &&
-        widget.movimiento!.categoria?.name.toLowerCase() == nombreCat.toLowerCase()) {
-      gastado = (gastado - widget.movimiento!.monto).clamp(0.0, double.infinity);
+        widget.movimiento!.categoria?.name.toLowerCase() ==
+            nombreCat.toLowerCase()) {
+      gastado = (gastado - widget.movimiento!.monto).clamp(
+        0.0,
+        double.infinity,
+      );
     }
 
     final totalResultante = gastado + montoNuevo;
@@ -366,7 +370,9 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     required double exceso,
   }) async {
     // Analítica: se advierte al usuario
-    AnaliticaServicio.track('aviso_limite_mostrado', {'categoria': categoriaName});
+    AnaliticaServicio.track('aviso_limite_mostrado', {
+      'categoria': categoriaName,
+    });
 
     final excesoTexto = 'Bs ${exceso.toStringAsFixed(2).replaceAll('.', ',')}';
 
@@ -395,14 +401,21 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         ),
         content: Text(
           'Con este gasto vas a superar el límite de la categoría $categoriaTexto por $excesoTexto.\n\n¿Deseas continuar de todas formas?',
-          style: const TextStyle(color: Colores.grisAzulado, height: 1.4, fontSize: 15),
+          style: const TextStyle(
+            color: Colores.grisAzulado,
+            height: 1.4,
+            fontSize: 15,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(contexto, false),
             child: const Text(
               'Cancelar',
-              style: TextStyle(color: Colores.verdeOscuro, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colores.verdeOscuro,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           FilledButton(
@@ -419,9 +432,13 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
 
     final resultado = confirmado ?? false;
     if (resultado) {
-      AnaliticaServicio.track('aviso_limite_confirmado', {'categoria': categoriaName});
+      AnaliticaServicio.track('aviso_limite_confirmado', {
+        'categoria': categoriaName,
+      });
     } else {
-      AnaliticaServicio.track('aviso_limite_cancelado', {'categoria': categoriaName});
+      AnaliticaServicio.track('aviso_limite_cancelado', {
+        'categoria': categoriaName,
+      });
     }
     return resultado;
   }
@@ -445,6 +462,20 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
         _errorConcepto != null ||
         _errorMonto != null ||
         _errorFecha != null) {
+      // Analitica, registrar el primer motivo fijo de error que freno al usuario
+      String motivo = 'validacion_invalida';
+      if (_errorConcepto != null) {
+        motivo = 'concepto_vacio';
+      } else if (textoMonto.isEmpty) {
+        motivo = 'monto_vacio';
+      } else if (monto == null || monto <= 0) {
+        motivo = 'monto_invalido';
+      } else if (_errorCategoria != null) {
+        motivo = 'categoria_vacia';
+      } else if (_errorFecha != null) {
+        motivo = 'fecha_vacia';
+      }
+      AnaliticaServicio.track('error_formulario_mostrado', {'motivo': motivo});
       return;
     }
 
@@ -453,7 +484,8 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     if (avisoExceso != null) {
       final confirmado = await _pedirConfirmacionSuperacionLimite(
         categoriaTexto: avisoExceso['categoriaTexto'] as String,
-        categoriaName: (avisoExceso['presupuesto'] as PresupuestoCategoria).categoria,
+        categoriaName:
+            (avisoExceso['presupuesto'] as PresupuestoCategoria).categoria,
         exceso: avisoExceso['exceso'] as double,
       );
       if (!confirmado) {

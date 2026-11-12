@@ -48,35 +48,139 @@ class AnaliticaServicio {
   }
 
   /// Lee los eventos almacenados localmente y calcula los conteos y la tasa de conversión.
-  /// Equivale a: SELECT evento, COUNT(*) FROM eventos GROUP BY evento
+  /// Equivale a un GROUP BY local de los eventos registrados por flujo.
   static Future<Map<String, dynamic>> obtenerResumen() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_claveEventos);
       final List<dynamic> lista = raw != null ? jsonDecode(raw) as List<dynamic> : [];
 
-      int iniciados = 0;
-      int guardados = 0;
+      // 1. Embudo Movimientos
+      int movIniciados = 0;
+      int movGuardados = 0;
+
+      // 2 Embudo Metas
+      int metasIniciadas = 0;
+      int metasGuardadas = 0;
+      int fondosOperados = 0;
+
+      // 3 Embudo Limites
+      int limitesIniciados = 0;
+      int limitesGuardados = 0;
+
+      // 4 Aviso limite 
+      int avisosMostrados = 0;
+      int avisosConfirmados = 0;
+      int avisosCancelados = 0;
+
+      // 5 Friccion y Búsquedas
+      final Map<String, int> erroresFormulario = {};
+      int busquedasSinResultado = 0;
 
       for (final item in lista) {
         if (item is Map<String, dynamic>) {
-          final nombre = item['evento'];
-          if (nombre == 'movimiento_iniciado') iniciados++;
-          if (nombre == 'movimiento_guardado') guardados++;
+          final nombre = item['evento'] as String? ?? '';
+          final props = item['props'] as Map<String, dynamic>? ?? {};
+
+          switch (nombre) {
+            case 'movimiento_iniciado':
+              movIniciados++;
+              break;
+            case 'movimiento_guardado':
+              movGuardados++;
+              break;
+            case 'meta_creacion_iniciada':
+              metasIniciadas++;
+              break;
+            case 'meta_guardada':
+              metasGuardadas++;
+              break;
+            case 'fondos_meta_operados':
+              fondosOperados++;
+              break;
+            case 'limite_iniciado':
+              limitesIniciados++;
+              break;
+            case 'limite_guardado':
+              limitesGuardados++;
+              break;
+            case 'aviso_limite_mostrado':
+              avisosMostrados++;
+              break;
+            case 'aviso_limite_confirmado':
+              avisosConfirmados++;
+              break;
+            case 'aviso_limite_cancelado':
+              avisosCancelados++;
+              break;
+            case 'error_formulario_mostrado':
+              final motivo = props['motivo'] as String? ?? 'desconocido';
+              erroresFormulario[motivo] = (erroresFormulario[motivo] ?? 0) + 1;
+              break;
+            case 'busqueda_sin_resultados':
+              busquedasSinResultado++;
+              break;
+          }
         }
       }
 
-      final porcentaje = iniciados > 0
-          ? ((guardados / iniciados) * 1000).round() / 10
-          : 0.0;
+      double calcularTasa(int exito, int total) {
+        if (total <= 0) return 0.0;
+        return ((exito / total) * 1000).round() / 10;
+      }
+
+      double calcularCaida(int exito, int total) {
+        if (total <= 0) return 0.0;
+        final caida = ((total - exito) / total) * 100;
+        return (caida * 10).round() / 10;
+      }
 
       // Invertir para mostrar los más recientes primero
       final ultimos = lista.reversed.take(20).toList();
 
       return {
-        'iniciados': iniciados,
-        'guardados': guardados,
-        'porcentaje': porcentaje,
+        // Compatibilidad con metricas previas
+        'iniciados': movIniciados,
+        'guardados': movGuardados,
+        'porcentaje': calcularTasa(movGuardados, movIniciados),
+
+        // Embudo Movimientos
+        'movimientos': {
+          'iniciados': movIniciados,
+          'guardados': movGuardados,
+          'conversion': calcularTasa(movGuardados, movIniciados),
+          'caida': calcularCaida(movGuardados, movIniciados),
+        },
+
+        // Embudo Metas
+        'metas': {
+          'iniciadas': metasIniciadas,
+          'guardadas': metasGuardadas,
+          'fondosOperados': fondosOperados,
+          'conversion': calcularTasa(metasGuardadas, metasIniciadas),
+          'caida': calcularCaida(metasGuardadas, metasIniciadas),
+        },
+
+        // Embudo Limites
+        'limites': {
+          'iniciados': limitesIniciados,
+          'guardados': limitesGuardados,
+          'conversion': calcularTasa(limitesGuardados, limitesIniciados),
+          'caida': calcularCaida(limitesGuardados, limitesIniciados),
+        },
+
+        // Metricas de Advertencia de limite 
+        'avisoLimite': {
+          'mostrados': avisosMostrados,
+          'confirmados': avisosConfirmados,
+          'cancelados': avisosCancelados,
+          'tasaDisuasion': calcularTasa(avisosCancelados, avisosMostrados),
+        },
+
+        // Friccion
+        'erroresFormulario': erroresFormulario,
+        'busquedasSinResultado': busquedasSinResultado,
+
         'ultimos': ultimos,
       };
     } catch (e) {
@@ -85,6 +189,12 @@ class AnaliticaServicio {
         'iniciados': 0,
         'guardados': 0,
         'porcentaje': 0.0,
+        'movimientos': {'iniciados': 0, 'guardados': 0, 'conversion': 0.0, 'caida': 0.0},
+        'metas': {'iniciadas': 0, 'guardadas': 0, 'fondosOperados': 0, 'conversion': 0.0, 'caida': 0.0},
+        'limites': {'iniciados': 0, 'guardados': 0, 'conversion': 0.0, 'caida': 0.0},
+        'avisoLimite': {'mostrados': 0, 'confirmados': 0, 'cancelados': 0, 'tasaDisuasion': 0.0},
+        'erroresFormulario': <String, int>{},
+        'busquedasSinResultado': 0,
         'ultimos': [],
       };
     }

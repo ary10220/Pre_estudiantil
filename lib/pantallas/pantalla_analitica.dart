@@ -12,10 +12,7 @@ class PantallaAnalitica extends StatefulWidget {
 
 class _PantallaAnaliticaState extends State<PantallaAnalitica> {
   bool _cargando = true;
-  int _iniciados = 0;
-  int _guardados = 0;
-  double _porcentaje = 0;
-  List<dynamic> _ultimos = [];
+  Map<String, dynamic> _datos = {};
 
   @override
   void initState() {
@@ -27,16 +24,21 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
     final datos = await AnaliticaServicio.obtenerResumen();
     if (!mounted) return;
     setState(() {
-      _iniciados = (datos['iniciados'] as num?)?.toInt() ?? 0;
-      _guardados = (datos['guardados'] as num?)?.toInt() ?? 0;
-      _porcentaje = (datos['porcentaje'] as num?)?.toDouble() ?? 0.0;
-      _ultimos = (datos['ultimos'] as List?) ?? [];
+      _datos = datos;
       _cargando = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final mov = _datos['movimientos'] as Map<String, dynamic>? ?? {};
+    final metas = _datos['metas'] as Map<String, dynamic>? ?? {};
+    final limites = _datos['limites'] as Map<String, dynamic>? ?? {};
+    final aviso = _datos['avisoLimite'] as Map<String, dynamic>? ?? {};
+    final errores = _datos['erroresFormulario'] as Map<String, dynamic>? ?? {};
+    final busquedasSinRes = _datos['busquedasSinResultado'] as int? ?? 0;
+    final ultimos = _datos['ultimos'] as List<dynamic>? ?? [];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analítica de interacción'),
@@ -59,7 +61,7 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const Text(
-                    'Embudo del flujo principal',
+                    'Embudos de los flujos principales',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -68,35 +70,74 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Medición de usuarios que empiezan y completan un movimiento.',
+                    'Monitoreo de conversion y caida por flujo (inicio -> exito)',
                     style: TextStyle(color: Colores.grisAzulado, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
-                  _tarjetaMetrica(
-                    titulo: 'Movimientos iniciados',
-                    valor: '$_iniciados',
-                    subtitulo: 'Aperturas del formulario',
-                    colorValor: Colores.azulOscuro,
+
+                  // 1. Embudo Movimientos
+                  _tarjetaEmbudo(
+                    titulo: '1. Registrar movimiento',
+                    pasoInicio: 'Iniciados: ${mov['iniciados'] ?? 0}',
+                    pasoExito: 'Guardados: ${mov['guardados'] ?? 0}',
+                    tasaConversion: '${mov['conversion'] ?? 0.0} %',
+                    tasaCaida: '${mov['caida'] ?? 0.0} %',
+                    icono: Icons.receipt_long_outlined,
                   ),
                   const SizedBox(height: 12),
-                  _tarjetaMetrica(
-                    titulo: 'Movimientos guardados',
-                    valor: '$_guardados',
-                    subtitulo: 'Confirmados en la base de datos',
-                    colorValor: Colores.verdeOscuro,
+
+                  // 2. Embudo metas
+                  _tarjetaEmbudo(
+                    titulo: '2. Crear Meta de Ahorro',
+                    pasoInicio: 'Iniciadas: ${metas['iniciadas'] ?? 0}',
+                    pasoExito: 'Guardadas: ${metas['guardadas'] ?? 0}',
+                    tasaConversion: '${metas['conversion'] ?? 0.0} %',
+                    tasaCaida: '${metas['caida'] ?? 0.0} %',
+                    detalleExtra: 'Operaciones de fondos: ${metas['fondosOperados'] ?? 0}',
+                    icono: Icons.flag_outlined,
                   ),
                   const SizedBox(height: 12),
-                  _tarjetaMetrica(
-                    titulo: 'Tasa de finalización',
-                    valor: '$_porcentaje %',
-                    subtitulo: 'Guardados ÷ Iniciados × 100',
-                    colorValor: _porcentaje >= 70
-                        ? Colores.verdeOscuro
-                        : (_porcentaje >= 40 ? Colores.aviso : Colores.rojo),
+
+                  // 3. Embudo limites
+                  _tarjetaEmbudo(
+                    titulo: '3. Fijar Presupuesto / Limite',
+                    pasoInicio: 'Aperturas: ${limites['iniciados'] ?? 0}',
+                    pasoExito: 'Guardados: ${limites['guardados'] ?? 0}',
+                    tasaConversion: '${limites['conversion'] ?? 0.0} %',
+                    tasaCaida: '${limites['caida'] ?? 0.0} %',
+                    icono: Icons.savings_outlined,
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  // 4 Efectividad del aviso de limite (Parte B)
                   const Text(
-                    'Últimos eventos registrados',
+                    'Efectividad del aviso de limite (Parte B)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colores.azulOscuro,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _tarjetaAviso(aviso),
+                  const SizedBox(height: 20),
+
+                  // 5 Puntos de friccion
+                  const Text(
+                    'Puntos de fricción y busquedas en blanco',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colores.azulOscuro,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _tarjetaFriccion(errores, busquedasSinRes),
+                  const SizedBox(height: 24),
+
+                  // 6 Ultimos Eventos
+                  const Text(
+                    'Ultimos eventos registrados',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -104,27 +145,30 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (_ultimos.isEmpty)
+                  if (ultimos.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Text(
-                        'Aún no hay eventos registrados.',
+                        'Aun no hay eventos registrados.',
                         style: TextStyle(color: Colores.grisAzulado),
                       ),
                     )
                   else
-                    for (final ev in _ultimos) _filaEvento(ev),
+                    for (final ev in ultimos) _filaEvento(ev),
                 ],
               ),
       ),
     );
   }
 
-  Widget _tarjetaMetrica({
+  Widget _tarjetaEmbudo({
     required String titulo,
-    required String valor,
-    required String subtitulo,
-    required Color colorValor,
+    required String pasoInicio,
+    required String pasoExito,
+    required String tasaConversion,
+    required String tasaCaida,
+    String? detalleExtra,
+    required IconData icono,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -133,37 +177,117 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colores.verdeClaro),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Icon(icono, color: Colores.verdeOscuro, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   titulo,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: Colores.grisAzulado,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Colores.azulOscuro,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitulo,
-                  style: const TextStyle(fontSize: 12, color: Colores.grisAzulado),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colores.verdeClaro,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
+                child: Text(
+                  'Exito: $tasaConversion',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colores.verdeOscuro,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(pasoInicio, style: const TextStyle(fontSize: 13, color: Colores.grisAzulado)),
+              Text(pasoExito, style: const TextStyle(fontSize: 13, color: Colores.azulOscuro, fontWeight: FontWeight.w600)),
+              Text('Caida: $tasaCaida', style: const TextStyle(fontSize: 13, color: Colores.rojo, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          if (detalleExtra != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              detalleExtra,
+              style: const TextStyle(fontSize: 12, color: Colores.grisAzulado, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _tarjetaAviso(Map<String, dynamic> aviso) {
+    final mostrados = aviso['mostrados'] ?? 0;
+    final cancelados = aviso['cancelados'] ?? 0;
+    final confirmados = aviso['confirmados'] ?? 0;
+    final disuasion = aviso['tasaDisuasion'] ?? 0.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Avisos mostrados: $mostrados', style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.azulOscuro)),
+              Text('Disuasion: $disuasion %', style: const TextStyle(fontWeight: FontWeight.bold, color: Colores.verdeOscuro)),
+            ],
+          ),
+          const SizedBox(height: 6),
           Text(
-            valor,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: colorValor,
-            ),
+            '• Cancelados (evito gasto): $cancelados\n• Confirmados (asumio exceso): $confirmados',
+            style: const TextStyle(fontSize: 13, color: Colores.grisAzulado, height: 1.4),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tarjetaFriccion(Map<String, dynamic> errores, int busquedasSinRes) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Búsquedas sin resultados: $busquedasSinRes',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colores.azulOscuro),
+          ),
+          const SizedBox(height: 8),
+          const Text('Errores que frenaron el formulario:', style: TextStyle(fontSize: 13, color: Colores.grisAzulado)),
+          const SizedBox(height: 4),
+          if (errores.isEmpty)
+            const Text('Sin errores registrados', style: TextStyle(fontSize: 12, color: Colores.grisAzulado, fontStyle: FontStyle.italic))
+          else
+            for (final entry in errores.entries)
+              Text('• ${entry.key}: ${entry.value}', style: const TextStyle(fontSize: 12, color: Colores.rojo)),
         ],
       ),
     );
