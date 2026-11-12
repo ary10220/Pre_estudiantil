@@ -331,7 +331,7 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
             style: TextStyle(fontSize: 13, color: Colores.grisAzulado),
           ),
           const SizedBox(height: 4),
-          if (errores.length <= 1)
+          if (errores.isEmpty)
             const Text(
               'Sin errores registrados',
               style: TextStyle(
@@ -343,12 +343,24 @@ class _PantallaAnaliticaState extends State<PantallaAnalitica> {
           else
             for (final entry in errores.entries)
               Text(
-                '• ${entry.key}: ${entry.value}',
+                '• ${_motivoLegible(entry.key)}: ${entry.value}',
                 style: const TextStyle(fontSize: 12, color: Colores.rojo),
               ),
         ],
       ),
     );
+  }
+
+  String _motivoLegible(String motivo) {
+    return switch (motivo) {
+      'concepto_vacio' => 'Concepto vacío',
+      'monto_vacio' => 'Monto vacío',
+      'monto_invalido' => 'Monto inválido',
+      'categoria_vacia' => 'Categoría vacía',
+      'fecha_vacia' => 'Fecha vacía',
+      'validacion_invalida' => 'Validación inválida',
+      _ => motivo,
+    };
   }
 
   Widget _filaEvento(dynamic ev) {
