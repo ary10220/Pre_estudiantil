@@ -6,6 +6,13 @@ enum TipoMovimiento { ingreso, gasto }
 
 enum CategoriaMovimiento { comida, transporte, estudio, otros }
 
+enum FrecuenciaRecurrencia { semanal, mensual }
+
+extension TextoFrecuencia on FrecuenciaRecurrencia {
+  String get texto =>
+      this == FrecuenciaRecurrencia.semanal ? 'Semanal' : 'Mensual';
+}
+
 // Textos para mostrar en la interfaz (H2.1: el ingreso se cobra, no se paga)
 extension TextoEstado on EstadoMovimiento {
   String get texto => this == EstadoMovimiento.pagado ? 'Pagado' : 'Pendiente';
@@ -41,6 +48,8 @@ class Movimiento {
   final TipoMovimiento tipo;
   final CategoriaMovimiento categoria;
   final EstadoMovimiento estado;
+  final bool recurrente;
+  final FrecuenciaRecurrencia? frecuencia;
 
   // Un movimiento nuevo siempre empieza como pendiente
   const Movimiento({
@@ -51,6 +60,8 @@ class Movimiento {
     this.tipo = TipoMovimiento.gasto,
     this.categoria = CategoriaMovimiento.otros,
     this.estado = EstadoMovimiento.pendiente,
+    this.recurrente = false,
+    this.frecuencia,
   });
 
   // Construye el objeto a partir de lo que devuelve el servidor
@@ -61,14 +72,23 @@ class Movimiento {
       monto: (json['monto'] as num).toDouble(),
       fecha: DateTime.parse(json['fecha'] as String),
       tipo: TipoMovimiento.values.byName((json['tipo'] as String?) ?? 'gasto'),
-      categoria: CategoriaMovimiento.values.byName((json['categoria'] as String?) ?? 'otros'),
+      categoria: CategoriaMovimiento.values.byName(
+        (json['categoria'] as String?) ?? 'otros',
+      ),
       estado: json['estado'] == 'pagado'
           ? EstadoMovimiento.pagado
           : EstadoMovimiento.pendiente,
+      recurrente: json['recurrente'] == true,
+      frecuencia: json['frecuencia'] == null
+          ? null
+          : FrecuenciaRecurrencia.values.byName(json['frecuencia'] as String),
     );
   }
 
   bool get esIngreso => tipo == TipoMovimiento.ingreso;
+
+  String get recurrenciaTexto =>
+      frecuencia == null ? 'Recurrente' : 'Recurrente ${frecuencia!.texto}';
 
   // Texto del estado según el tipo (H2.1)
   String get estadoTexto => estado.textoPara(tipo);
@@ -88,7 +108,9 @@ class Movimiento {
   Movimiento marcarComoPagado() {
     if (estado == EstadoMovimiento.pagado) {
       throw StateError(
-        esIngreso ? 'El movimiento ya está cobrado' : 'El movimiento ya está pagado',
+        esIngreso
+            ? 'El movimiento ya está cobrado'
+            : 'El movimiento ya está pagado',
       );
     }
     return Movimiento(
@@ -99,6 +121,8 @@ class Movimiento {
       tipo: tipo,
       categoria: categoria,
       estado: EstadoMovimiento.pagado,
+      recurrente: recurrente,
+      frecuencia: frecuencia,
     );
   }
 
@@ -128,6 +152,8 @@ class Movimiento {
       tipo: tipo,
       categoria: categoria ?? this.categoria,
       estado: estado,
+      recurrente: recurrente,
+      frecuencia: frecuencia,
     );
   }
 

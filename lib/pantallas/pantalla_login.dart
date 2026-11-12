@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../servicios/servicio_acceso.dart';
@@ -42,7 +43,11 @@ class _PantallaLoginState extends State<PantallaLogin> {
       await ServicioAcceso.iniciarSesion(correo, contrasena);
       if (!mounted) return;
       // Entramos a la zona privada y borramos el historial de pantallas
-      Navigator.pushNamedAndRemoveUntil(context, Rutas.movimientos, (ruta) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        Rutas.movimientos,
+        (ruta) => false,
+      );
     } on ErrorAcceso catch (e) {
       if (!mounted) return;
       mostrarMensaje(context, e.mensaje, esError: true);
@@ -97,7 +102,8 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 esContrasena: true,
                 error: _errorContrasena,
                 alCambiar: (_) {
-                  if (_errorContrasena != null) setState(() => _errorContrasena = null);
+                  if (_errorContrasena != null)
+                    setState(() => _errorContrasena = null);
                 },
               ),
               const SizedBox(height: 32),
@@ -105,13 +111,15 @@ class _PantallaLoginState extends State<PantallaLogin> {
                 height: 58,
                 child: _cargando
                     ? const Center(
-                  child: CircularProgressIndicator(color: Colores.verdeOscuro),
-                )
+                        child: CircularProgressIndicator(
+                          color: Colores.verdeOscuro,
+                        ),
+                      )
                     : BotonPildora(
-                  texto: 'Entrar',
-                  icono: Icons.person_outline,
-                  alPresionar: _iniciarSesion,
-                ),
+                        texto: 'Entrar',
+                        icono: Icons.person_outline,
+                        alPresionar: _iniciarSesion,
+                      ),
               ),
               const SizedBox(height: 16),
               TextButton(

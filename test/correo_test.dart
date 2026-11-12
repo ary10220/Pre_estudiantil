@@ -8,7 +8,13 @@ void main() {
   });
 
   test('rechazado: sin @, sin dominio o con espacios', () {
-    for (final valor in ['correo-sin-arroba', 'ana@', 'ana@correo', 'ana perez@correo.com', '']) {
+    for (final valor in [
+      'correo-sin-arroba',
+      'ana@',
+      'ana@correo',
+      'ana perez@correo.com',
+      '',
+    ]) {
       expect(validarCorreo(valor), mensajeCorreoInvalido);
     }
   });

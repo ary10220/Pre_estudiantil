@@ -15,10 +15,10 @@ class ResultadoListado {
 class ServicioMovimientos {
   // Llamada con el token de la sesión
   static Future<Map<String, dynamic>> _pedir(
-      String metodo,
-      String ruta, {
-        Map<String, dynamic>? datos,
-      }) async {
+    String metodo,
+    String ruta, {
+    Map<String, dynamic>? datos,
+  }) async {
     final token = await ServicioAcceso.obtenerToken();
     if (token == null) throw SesionExpirada();
 
@@ -43,50 +43,70 @@ class ServicioMovimientos {
     final lista = (datos['movimientos'] as List)
         .map((j) => Movimiento.desdeJson(j as Map<String, dynamic>))
         .toList();
-    final totales = TotalesMovimientos.desdeJson(datos['totales'] as Map<String, dynamic>);
+    final totales = TotalesMovimientos.desdeJson(
+      datos['totales'] as Map<String, dynamic>,
+    );
     return ResultadoListado(lista, totales);
   }
 
   // Construir y guardar un movimiento nuevo
   static Future<Movimiento> crear(
-      String concepto,
-      double monto,
-      DateTime fecha,
-      TipoMovimiento tipo,
-      CategoriaMovimiento categoria,
-      ) async {
-    final datos = await _pedir('POST', '/movimientos', datos: {
-      'concepto': concepto,
-      'monto': monto,
-      'fecha': Movimiento.fechaParaServidor(fecha),
-      'tipo': tipo.name,
-      'categoria': categoria.name,
-    });
+    String concepto,
+    double monto,
+    DateTime fecha,
+    TipoMovimiento tipo,
+    CategoriaMovimiento categoria, {
+    bool recurrente = false,
+    FrecuenciaRecurrencia? frecuencia,
+  }) async {
+    final datos = await _pedir(
+      'POST',
+      '/movimientos',
+      datos: {
+        'concepto': concepto,
+        'monto': monto,
+        'fecha': Movimiento.fechaParaServidor(fecha),
+        'tipo': tipo.name,
+        'categoria': categoria.name,
+        'recurrente': recurrente,
+        if (frecuencia != null) 'frecuencia': frecuencia.name,
+      },
+    );
     return Movimiento.desdeJson(datos['movimiento']);
   }
 
   // Acción: pendiente -> pagado
   static Future<Movimiento> marcarComoPagado(Movimiento movimiento) async {
-    movimiento.marcarComoPagado(); // regla del modelo: rechaza si ya está pagado
+    movimiento
+        .marcarComoPagado(); // regla del modelo: rechaza si ya está pagado
     final datos = await _pedir('POST', '/movimientos/${movimiento.id}/pagar');
     return Movimiento.desdeJson(datos['movimiento']);
   }
 
   // Editar: primero la regla del modelo, luego se guarda en el servidor
   static Future<Movimiento> editar(
-      Movimiento original,
-      String concepto,
-      double monto,
-      DateTime fecha,
-      CategoriaMovimiento categoria,
-      ) async {
-    original.editar(concepto: concepto, monto: monto, fecha: fecha, categoria: categoria);
-    final datos = await _pedir('PUT', '/movimientos/${original.id}', datos: {
-      'concepto': concepto,
-      'monto': monto,
-      'fecha': Movimiento.fechaParaServidor(fecha),
-      'categoria': categoria.name,
-    });
+    Movimiento original,
+    String concepto,
+    double monto,
+    DateTime fecha,
+    CategoriaMovimiento categoria,
+  ) async {
+    original.editar(
+      concepto: concepto,
+      monto: monto,
+      fecha: fecha,
+      categoria: categoria,
+    );
+    final datos = await _pedir(
+      'PUT',
+      '/movimientos/${original.id}',
+      datos: {
+        'concepto': concepto,
+        'monto': monto,
+        'fecha': Movimiento.fechaParaServidor(fecha),
+        'categoria': categoria.name,
+      },
+    );
     return Movimiento.desdeJson(datos['movimiento']);
   }
 

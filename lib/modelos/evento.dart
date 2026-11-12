@@ -22,11 +22,12 @@ enum TipoEvento {
   }
 }
 
-// Filtros disponibles en la interfaz. 'gastos' NO incluye ingresos
-// (decisión Hick: solo 4 chips, los ingresos aparecen en 'todos').
+// Filtros disponibles en la interfaz, es un chip por tipo de evento
+// Se añadio "ingresos" en tarea-7 por feedback, porque antes aparecian solo en "todos"
 enum FiltroHistorial {
   todos,
   gastos,
+  ingresos,
   pagos,
   limite;
 
@@ -34,6 +35,7 @@ enum FiltroHistorial {
   String get etiqueta => switch (this) {
     FiltroHistorial.todos => 'Todos',
     FiltroHistorial.gastos => 'Gastos',
+    FiltroHistorial.ingresos => 'Ingresos',
     FiltroHistorial.pagos => 'Pagos',
     FiltroHistorial.limite => 'Límite',
   };
