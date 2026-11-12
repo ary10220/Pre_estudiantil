@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +10,7 @@ import '../modelos/movimiento.dart';
 import '../modelos/presupuesto_categoria.dart';
 import '../servicios/analitica.dart';
 import '../servicios/servicio_acceso.dart';
+import '../servicios/servicio_analitica.dart';
 import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/boton_pildora.dart';
@@ -85,6 +88,13 @@ class _PantallaNuevoMovimientoState extends State<PantallaNuevoMovimiento> {
     _categoriaInicial = _categoria;
     _frecuenciaInicial = _frecuencia;
     _fechaInicial = _fecha;
+    if (widget.movimiento == null) {
+      unawaited(
+        ServicioAnalitica.track('movimiento_iniciado', {
+          'pantalla': 'nuevo_movimiento',
+        }),
+      );
+    }
     _cargarResumen();
 
     // Analítica: se dispara al abrir el formulario solo para un movimiento nuevo
