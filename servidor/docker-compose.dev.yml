@@ -38,7 +38,7 @@ services:
       - .env
     environment:
       # Dentro de la red de Docker la base se llama por su servicio y usa su puerto interno
-      DB_HOST: pre_estudiantil-db
+      DB_HOST: pre_estudiantil_db_dev
       DB_PORT: 5432
     expose:
       - "${SERVER_PORT}"
