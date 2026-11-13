@@ -41,7 +41,7 @@ app.post('/logout', exigirSesion, async (req, res) => {
 ## 3. Después
 La AppBar ahora muestra un botón de cuenta (⋮) desde el que se abre “Eliminar cuenta”. El diálogo advierte que se borrarán la cuenta, los movimientos, las metas y los presupuestos, y pide la contraseña antes de confirmar.
 
-![Después: la AppBar muestra el botón de cuenta (⋮) para eliminar la cuenta](clase-22/despues.png)
+![Después: el menú de cuenta muestra la opción Eliminar cuenta](clase-22/despues1.2.png)
 
 Fragmento de código del después:
 
