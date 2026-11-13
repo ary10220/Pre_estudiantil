@@ -9,6 +9,7 @@ import '../modelos/limite.dart';
 import '../modelos/meta_ahorro.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
+import '../servicios/servicio_cuenta.dart';
 import '../servicios/servicio_limite.dart';
 import '../servicios/servicio_metas.dart';
 import '../servicios/servicio_movimientos.dart';
@@ -300,6 +301,93 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     Navigator.pushNamedAndRemoveUntil(context, Rutas.inicio, (ruta) => false);
   }
 
+  Future<void> _eliminarCuenta() async {
+    final contrasena = await _pedirContrasenaEliminarCuenta();
+    if (contrasena == null) return;
+
+    try {
+      await ServicioCuenta.eliminar(contrasena);
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
+    } on SesionExpirada {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
+    } on ErrorAcceso catch (e) {
+      if (!mounted) return;
+      mostrarMensaje(context, e.mensaje, esError: true);
+    }
+  }
+
+  Future<String?> _pedirContrasenaEliminarCuenta() async {
+    final controlador = TextEditingController();
+    String? error;
+
+    final resultado = await showDialog<String>(
+      context: context,
+      builder: (contexto) => StatefulBuilder(
+        builder: (contexto, setStateDialogo) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          title: const Text(
+            'Eliminar cuenta',
+            style: TextStyle(color: Colores.azulOscuro),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Esta acción elimina tu cuenta y todos tus movimientos, metas y presupuestos. No se puede deshacer.',
+                style: TextStyle(color: Colores.grisAzulado, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controlador,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Contraseña',
+                  errorText: error,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(contexto),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colores.verdeOscuro),
+              ),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+              ),
+              onPressed: () {
+                if (controlador.text.isEmpty) {
+                  setStateDialogo(() => error = 'Escribe tu contraseña');
+                  return;
+                }
+                Navigator.pop(contexto, controlador.text);
+              },
+              child: const Text('Eliminar cuenta'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controlador.dispose();
+    return resultado;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Mientras se verifica la sesión no se muestra contenido privado
@@ -356,6 +444,22 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout, color: Colores.verdeOscuro),
             onPressed: _cerrarSesion,
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Cuenta',
+            icon: const Icon(Icons.more_vert, color: Colores.verdeOscuro),
+            onSelected: (valor) {
+              if (valor == 'eliminar') unawaited(_eliminarCuenta());
+            },
+            itemBuilder: (contexto) => const [
+              PopupMenuItem(
+                value: 'eliminar',
+                child: Text(
+                  'Eliminar cuenta',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
         ],
       ),

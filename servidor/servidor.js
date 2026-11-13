@@ -230,6 +230,24 @@ app.post('/logout', exigirSesion, async (req, res) => {
   res.json({ mensaje: 'Sesión cerrada' });
 });
 
+// ---------- Eliminar cuenta y todos sus datos ----------
+app.delete('/cuenta', exigirSesion, async (req, res) => {
+  const contrasena = String(req.body?.contrasena || '');
+  if (!contrasena) {
+    return res.status(400).json({ error: 'Escribe tu contraseña' });
+  }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: req.usuario.id },
+  });
+  if (!usuario || !(await bcrypt.compare(contrasena, usuario.contrasenaHash))) {
+    return res.status(403).json({ error: 'Contraseña incorrecta' });
+  }
+
+  await prisma.usuario.delete({ where: { id: req.usuario.id } });
+  res.json({ mensaje: 'Cuenta eliminada' });
+});
+
 // ---------- Recuperación: genera un código de 6 dígitos ----------
 app.post('/recuperar', async (req, res) => {
   const usuario = await prisma.usuario.findUnique({

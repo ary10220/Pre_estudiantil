@@ -41,7 +41,11 @@ class ServicioAcceso {
             body: jsonEncode(datos ?? {}),
           );
         case 'DELETE':
-          return await http.delete(url, headers: cabeceras);
+          return await http.delete(
+            url,
+            headers: cabeceras,
+            body: datos != null ? jsonEncode(datos) : null,
+          );
         default:
           return await http.post(
             url,
@@ -119,6 +123,11 @@ class ServicioAcceso {
     } on ErrorAcceso {
       // Sin conexión: igual cerramos la sesión en el celular
     }
+    await prefs.remove(_claveToken);
+  }
+
+  static Future<void> limpiarSesion() async {
+    final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_claveToken);
   }
 
