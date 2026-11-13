@@ -83,3 +83,19 @@ test('cada evento trae su hora HH:mm', () => {
   const hoy = grupos.find((g) => g.titulo === 'Hoy');
   assert.equal(hoy.eventos[0].hora, '12:00');
 });
+
+
+// ---------- Filtro ingresos ----------
+test('filtro ingresos: solo ingreso_registrado', () => {
+  const grupos = armarHistorial(eventos, 'ingresos', HOY);
+  const tipos = grupos.flatMap((g) => g.eventos.map((e) => e.tipo));
+  assert.deepEqual(tipos, ['ingreso_registrado']);
+});
+
+test('filtro ingresos: no muestra gastos ni pagos', () => {
+  const soloGasto = [
+    { id: 1, tipo: 'gasto_registrado', movimiento_id: 1, monto: 50,
+      descripcion: 'Almuerzo', creado_en: HOY_1200 },
+  ];
+  assert.deepEqual(armarHistorial(soloGasto, 'ingresos', HOY), []);
+});

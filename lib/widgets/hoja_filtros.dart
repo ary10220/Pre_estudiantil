@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../modelos/filtros.dart';
 import '../modelos/movimiento.dart';
 
 // Abre el panel y devuelve los filtros elegidos (null si lo cierran sin aplicar)
 Future<FiltrosMovimientos?> mostrarHojaFiltros(
-    BuildContext context,
-    FiltrosMovimientos actual,
-    ) {
+  BuildContext context,
+  FiltrosMovimientos actual,
+) {
   return showModalBottomSheet<FiltrosMovimientos>(
     context: context,
     isScrollControlled: true,
@@ -36,7 +37,8 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
   late DateTime? _hasta = widget.actual.hasta;
   String? _error;
   // Tipo y Estado se usan poco: quedan plegados, salvo que ya tengan un filtro activo (Hick, clase 16)
-  late bool _masFiltros = widget.actual.tipo != null || widget.actual.estado != null;
+  late bool _masFiltros =
+      widget.actual.tipo != null || widget.actual.estado != null;
 
   FiltrosMovimientos _armar() => FiltrosMovimientos(
     buscar: widget.actual.buscar,
@@ -91,11 +93,11 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
 
   // Un grupo de opciones; la clave null significa "sin filtro"
   Widget _grupo<T>(
-      String titulo,
-      Map<T?, String> opciones,
-      T? valor,
-      ValueChanged<T?> alCambiar,
-      ) {
+    String titulo,
+    Map<T?, String> opciones,
+    T? valor,
+    ValueChanged<T?> alCambiar,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -150,16 +152,27 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
       ),
       label: Text(
         texto,
-        style: const TextStyle(color: Colores.verdeOscuro, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Colores.verdeOscuro,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 
-  Widget _botonFecha(String etiqueta, DateTime? fecha, VoidCallback alPresionar) {
+  Widget _botonFecha(
+    String etiqueta,
+    DateTime? fecha,
+    VoidCallback alPresionar,
+  ) {
     return Expanded(
       child: OutlinedButton.icon(
         onPressed: alPresionar,
-        icon: const Icon(Icons.calendar_today_outlined, size: 18, color: Colores.verdeOscuro),
+        icon: const Icon(
+          Icons.calendar_today_outlined,
+          size: 18,
+          color: Colores.verdeOscuro,
+        ),
         label: Text(
           fecha == null ? etiqueta : Movimiento.formatearFecha(fecha),
           style: const TextStyle(color: Colores.azulOscuro),
@@ -197,7 +210,7 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
                 for (final c in CategoriaMovimiento.values) c: c.texto,
               },
               _categoria,
-                  (v) => setState(() => _categoria = v),
+              (v) => setState(() => _categoria = v),
             ),
             _grupo<PeriodoFiltro>(
               'Periodo',
@@ -208,7 +221,7 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
                 PeriodoFiltro.rango: 'Rango de fechas',
               },
               _periodo,
-                  (v) => setState(() {
+              (v) => setState(() {
                 _periodo = v;
                 _error = null;
               }),
@@ -216,9 +229,17 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
             if (_periodo == PeriodoFiltro.rango) ...[
               Row(
                 children: [
-                  _botonFecha('Desde', _desde, () => _elegirFecha(esDesde: true)),
+                  _botonFecha(
+                    'Desde',
+                    _desde,
+                    () => _elegirFecha(esDesde: true),
+                  ),
                   const SizedBox(width: 12),
-                  _botonFecha('Hasta', _hasta, () => _elegirFecha(esDesde: false)),
+                  _botonFecha(
+                    'Hasta',
+                    _hasta,
+                    () => _elegirFecha(esDesde: false),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -234,7 +255,7 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
                   for (final t in TipoMovimiento.values) t: t.texto,
                 },
                 _tipo,
-                    (v) => setState(() => _tipo = v),
+                (v) => setState(() => _tipo = v),
               ),
               _grupo<EstadoMovimiento>(
                 'Estado',
@@ -243,24 +264,32 @@ class _HojaFiltrosState extends State<_HojaFiltros> {
                   for (final e in EstadoMovimiento.values) e: e.texto,
                 },
                 _estado,
-                    (v) => setState(() => _estado = v),
+                (v) => setState(() => _estado = v),
               ),
             ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: Colores.rojo)),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: Colores.rojo),
+                ),
               ),
             Row(
               children: [
                 TextButton(
                   onPressed: _limpiar,
-                  child: const Text('Limpiar', style: TextStyle(color: Colores.verdeOscuro)),
+                  child: const Text(
+                    'Limpiar',
+                    style: TextStyle(color: Colores.verdeOscuro),
+                  ),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: _aplicar,
-                  style: FilledButton.styleFrom(backgroundColor: Colores.verdeOscuro),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colores.verdeOscuro,
+                  ),
                   child: const Text('Aplicar'),
                 ),
               ],

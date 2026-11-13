@@ -1,119 +1,120 @@
 # UniBudget - Presupuesto Estudiantil
 
 App móvil para que estudiantes organicen sus ingresos y gastos.
-Incluye:
-- **Tarea 1:** el manejo de acceso (registro, inicio y cierre de sesión, recuperación de contraseña, sesión conservada, una ruta pública y una ruta privada, "Mis movimientos").
-- **Tareas 2 y 3:** el ciclo completo de un movimiento (crear, marcar como pagado, editar y eliminar).
-- **HU-01:** el límite mensual de gastos.
-- **Tarea 4 (clase 16):** historial de actividad, agrupado por día y filtrable (chips Todos · Gastos · Pagos · Límite). Cada acción (gasto, ingreso, pago, límite) guarda un evento en la misma transacción que la acción.
+
+> Para levantar el proyecto paso a paso, incluidos Docker, emulador y pruebas de integración, consulta [INICIO_RAPIDO.md](INICIO_RAPIDO.md).
+
+## Tabla de contenido
+
+- [Descripción](#descripción)
+- [Tecnologías](#tecnologías)
+- [Inicio rápido](#inicio-rápido)
+- [Usuario de prueba](#usuario-de-prueba)
+- [Funcionalidades](#funcionalidades)
+- [Pruebas](#pruebas)
+- [Documentación](#documentación)
+
+## Descripción
+
+UniBudget permite registrar ingresos y gastos, marcarlos como pagados, editarlos, eliminarlos, definir un límite mensual y consultar un historial de actividad.
 
 ## Tecnologías
 
-- **App:** Flutter (Dart), probada en el emulador de Android Studio (Pixel 6a)
-- **API:** Node.js + Express
-- **Base de datos:** PostgreSQL
+- **App:** Flutter (Dart).
+- **API:** Node.js + Express + Prisma.
+- **Base de datos:** PostgreSQL 16.
+- **Desarrollo:** Docker Compose con hot-reload.
 
-```
+```text
 App Flutter  →  API (servidor/)  →  PostgreSQL
 ```
 
-## Requisitos
+## Inicio rápido
 
-- Flutter y Dart
-- Android Studio con un emulador Android
-- Node.js (v18 o superior)
-- PostgreSQL
+1. Levanta el backend y la base de datos:
 
-## Cómo iniciar el proyecto
-
-### 1. Base de datos
-
-En pgAdmin (o `psql`) crea la base y las tablas:
-
-```sql
-CREATE DATABASE presupuesto_estudiantil;
-```
-
-Conéctate a esa base y ejecuta el contenido de `base_datos/esquema.sql`.
-
-Si tu base se creó antes, no la borres: aplicá los `base_datos/cambios/00N_*.sql` que te falten (001 límite, 002 límites mensuales, 003 tipo y categoría, **004 eventos para el historial**).
-
-### 2. Servidor (API)
-
-```powershell
+```bash
 cd servidor
-copy .env.example .env
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
-Abre `servidor/.env` y escribe tu contraseña de PostgreSQL en `DB_PASSWORD`. Luego:
+2. Configura el `.env` de la raíz para Flutter:
 
-```powershell
-npm install
-node semilla.js
-node servidor.js
+```env
+API_BASE_URL=http://10.0.2.2:3000
+APP_NAME="UniBudget"
 ```
 
-- `node semilla.js` carga el usuario de prueba (ver más abajo).
-- `node servidor.js` deja la API en `http://localhost:3000`. Déjala corriendo.
-- Comprobación: abrir `http://localhost:3000/ping` debe mostrar `{"mensaje":"Servidor funcionando"}`.
+Usa `http://localhost:3000` en macOS o web.
 
-### 3. App Flutter
+3. Ejecuta la app:
 
-Con el emulador de Android encendido, desde la raíz del proyecto:
-
-```powershell
+```bash
 flutter pub get
-flutter run
+flutter run -d <ID_DEL_DISPOSITIVO>
 ```
 
-La app se conecta a `http://10.0.2.2:3000` (en el emulador, `10.0.2.2` es el `localhost` de la PC). Esta dirección está en `lib/configuracion/constantes.dart`.
+Los pasos completos, la configuración de IP por plataforma y las pruebas de integración están en [INICIO_RAPIDO.md](INICIO_RAPIDO.md).
 
-## Usuario de prueba (semilla)
+## Usuario de prueba
 
 | Correo | Contraseña |
 |---|---|
 | prueba@correo.com | 123456 |
 
-## Recuperación de contraseña
+La semilla se ejecuta automáticamente al levantar el backend en desarrollo. Si el usuario ya existe, no se duplica. También deja dos metas de prueba: `Fondo de emergencia` y `Viaje`.
 
-No se envía correo real. Al pedir el código, la app lo muestra en pantalla (6 dígitos, válido 15 minutos).
+## Funcionalidades
 
-## Pruebas unitarias
+- Acceso: registro, inicio y cierre de sesión, recuperación de contraseña y sesión persistente.
+- Movimientos: crear, marcar como pagado, editar y eliminar; búsqueda y filtros.
+- Límite mensual: definir y consultar el límite; aviso al superarlo.
+- Recurrentes: gastos semanales o mensuales que generan la siguiente ocurrencia y cuentan en el presupuesto.
+- Metas de ahorro: crear metas, asignar, retirar y transferir fondos reservados sin alterar ingresos ni gastos.
+- Historial: eventos agrupados por día y filtros (Todos, Gastos, Pagos, Límite).
 
-Desde la raíz del proyecto:
+## Analítica
 
-```powershell
+- Eventos del flujo principal:
+  - `movimiento_iniciado` al abrir el formulario de nuevo movimiento.
+  - `movimiento_guardado` al guardar correctamente un movimiento.
+- Se guardan en la tabla `eventos` con propiedades mínimas: `pantalla` y `tipo` cuando corresponde. No se guardan email, descripción ni monto.
+- Panel: `GET /analitica`; imprime la fecha en hora boliviana (`America/La_Paz`) y los conteos, separados con `###############`. Devuelve `{ fecha, iniciados, completados }`.
+- Decisión: si la diferencia entre inicios y éxitos es alta, revisar el formulario para reducir la fricción del flujo.
+
+## Pruebas
+
+Unitarias de Flutter:
+
+```bash
 flutter test
 ```
 
-Las pruebas están en `test/`:
+Pruebas del backend, con la base de datos de desarrollo levantada:
 
-- `movimiento_test.dart`: estado inicial, transición `pendiente → pagado`, rechazo de transición inválida y conservación de datos.
-- `restriccion_monto_test.dart`: un movimiento pagado no permite modificar su monto.
-- `limite_validaciones_test.dart`: el límite mensual se acepta si es mayor a 0 y se rechaza si está vacío, en 0, es negativo o tiene letras.
-
-Las pruebas del servidor (la misma regla del límite) se corren desde `servidor/`:
-
-```powershell
+```bash
+cd servidor
 npm test
 ```
 
-## Límite mensual (HU-01)
+Integración, con el backend y un dispositivo o emulador funcionando:
 
-- En "Mis movimientos", el ícono de la alcancía abre "Límite del mes".
-- El límite tiene que ser un número mayor a 0. Si no lo es, el mensaje "El límite debe ser un número mayor a 0" aparece debajo del campo.
-- Se guarda en `usuarios.limite_mensual` y se lee con `GET /limite` y `PUT /limite`, con sesión.
+```bash
+flutter test integration_test -d <ID_DEL_DISPOSITIVO>
+```
 
-## Historial de actividad (Tarea 4)
+Para ejecutar una prueba de integración específica:
 
-- En "Mis movimientos", el botón **"Historial"** (barra superior) abre la pantalla.
-- 4 chips mutuamente excluyentes (**Todos · Gastos · Pagos · Límite**) y lista agrupada por día (Hoy / Ayer / "12 de octubre").
-- Cada acción guarda su evento en la misma transacción: `POST /movimientos` → `gasto_registrado`/`ingreso_registrado`; `POST /movimientos/:id/pagar` → `movimiento_pagado`; `PUT /limite` → `limite_definido`.
-- Consulta: `GET /historial?tipo=<todos|gastos|pagos|limite>`, siempre filtrada por `req.usuario.id`.
-- Las 3 decisiones de interacción (Fitts, Hick, carga cognitiva) están en [`docs/decisiones-interaccion.md`](docs/decisiones-interaccion.md).
+```bash
+flutter test integration_test/presupuesto_test.dart -d <ID_DEL_DISPOSITIVO>
+flutter test integration_test/recurrentes_test.dart -d <ID_DEL_DISPOSITIVO>
+```
+
+Consulta [INICIO_RAPIDO.md](INICIO_RAPIDO.md) para preparar el entorno.
 
 ## Documentación
 
+- [`INICIO_RAPIDO.md`](INICIO_RAPIDO.md): pasos para levantar el proyecto.
 - [`docs/task-01-access.md`](docs/task-01-access.md): Tarea 1, acceso.
 - [`docs/task-02-state-tests.md`](docs/task-02-state-tests.md): Tarea 2, estado y pruebas.
 - [`docs/task-03-edit-delete.md`](docs/task-03-edit-delete.md): Tarea 3, editar y eliminar.
@@ -122,4 +123,4 @@ npm test
 - [`docs/clase-16-decisiones-interaccion.md`](docs/clase-16-decisiones-interaccion.md): clase 16, decisiones de interacción (filtros).
 - [`docs/decisiones-interaccion.md`](docs/decisiones-interaccion.md): Tarea 4 (clase 16), decisiones aplicadas al Historial.
 - [`docs/bitacora.md`](docs/bitacora.md): bitácora del proyecto.
-- [`docs/issue-07-buscar-filtrar.md`](docs/issue-07-buscar-filtrar.md): Buscar y filtrar movimientos.
+- [`docs/issue-07-buscar-filtrar.md`](docs/issue-07-buscar-filtrar.md): buscar y filtrar movimientos.

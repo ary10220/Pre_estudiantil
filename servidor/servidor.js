@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const pool = require('./conexion');
+const { Prisma } = require('@prisma/client');
+const prisma = require('./conexion');
+const { puerto } = require('./env');
 
 const {
   validarMontoLimite,
@@ -22,33 +24,144 @@ const {
 
 const { validarCorreo } = require('./correo');
 const { FILTROS: FILTROS_HISTORIAL, armarHistorial } = require('./historial');
+const { FRECUENCIAS, sumarFrecuencia } = require('./recurrentes');
+const {
+  validarMontoMeta,
+  validarNombreMeta,
+  validarFechaMeta,
+  calcularSaldos,
+  validarAsignacion,
+  validarRetiro,
+  validarTransferencia,
+} = require('./metas');
+const { EVENTOS, fechaBolivia, validarEvento } = require('./analitica');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Las fechas DATE se manejan como 'AAAA-MM-DD' para evitar problemas de zona horaria
+function fechaATexto(fecha) {
+  return fecha.toISOString().slice(0, 10);
+}
+
+function textoAFecha(texto) {
+  return new Date(`${texto}T00:00:00.000Z`);
+}
+
+function formatearMovimiento(movimiento) {
+  return {
+    id: movimiento.id,
+    concepto: movimiento.concepto,
+    monto: Number(movimiento.monto),
+    fecha: fechaATexto(movimiento.fecha),
+    tipo: movimiento.tipo,
+    categoria: movimiento.categoria,
+    estado: movimiento.estado,
+    recurrente: Boolean(movimiento.recurrenciaId),
+    frecuencia: movimiento.recurrencia?.frecuencia ?? null,
+  };
+}
+
+function formatearMeta(meta) {
+  const objetivo = Number(meta.montoObjetivo);
+  const reservado = Number(meta.montoReservado);
+  return {
+    id: meta.id,
+    nombre: meta.nombre,
+    montoObjetivo: objetivo,
+    fechaObjetivo: fechaATexto(meta.fechaObjetivo),
+    montoReservado: reservado,
+    progreso: objetivo > 0 ? Math.min(reservado / objetivo, 1) : 0,
+  };
+}
+
+function formatearMovimientoMeta(movimiento) {
+  return {
+    id: movimiento.id,
+    tipo: movimiento.tipo,
+    monto: Number(movimiento.monto),
+    metaRelacionada: movimiento.metaRelacionada?.nombre ?? null,
+    creadoEn: movimiento.creadoEn,
+  };
+}
+
+async function calcularResumenMetas(usuarioId, cliente = prisma) {
+  const ingresos = await cliente.movimiento.aggregate({
+    _sum: { monto: true },
+    where: { usuarioId, tipo: 'ingreso' },
+  });
+  const gastos = await cliente.movimiento.aggregate({
+    _sum: { monto: true },
+    where: { usuarioId, tipo: 'gasto' },
+  });
+  const reservado = await cliente.metaAhorro.aggregate({
+    _sum: { montoReservado: true },
+    where: { usuarioId },
+  });
+
+  return calcularSaldos({
+    ingresos: ingresos._sum.monto === null ? 0 : Number(ingresos._sum.monto),
+    gastos: gastos._sum.monto === null ? 0 : Number(gastos._sum.monto),
+    reservado:
+      reservado._sum.montoReservado === null
+        ? 0
+        : Number(reservado._sum.montoReservado),
+  });
+}
 
 // ---------- Protección: exige una sesión válida ----------
 async function exigirSesion(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'No hay sesión' });
 
-  const resultado = await pool.query(
-    `SELECT u.id, u.nombre, u.correo
-     FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
-     WHERE s.token = $1 AND s.expira_en > NOW()`,
-    [token]
-  );
-  if (resultado.rows.length === 0) {
+  const sesion = await prisma.sesion.findFirst({
+    where: { token, expiraEn: { gt: new Date() } },
+    include: { usuario: { select: { id: true, nombre: true, correo: true } } },
+  });
+  if (!sesion) {
     return res.status(401).json({ error: 'Sesión inválida o expirada' });
   }
 
-  req.usuario = resultado.rows[0];
+  req.usuario = sesion.usuario;
   req.token = token;
   next();
 }
 
 // ---------- Ruta pública ----------
 app.get('/ping', (req, res) => res.json({ mensaje: 'Servidor funcionando' }));
+
+// ---------- Analítica ----------
+app.get('/analitica', async (req, res) => {
+  const [iniciados, completados] = await Promise.all([
+    prisma.evento.count({ where: { tipo: 'movimiento_iniciado' } }),
+    prisma.evento.count({ where: { tipo: 'movimiento_guardado' } }),
+  ]);
+  const fecha = fechaBolivia();
+  console.log("###############");
+  console.log(`Fecha ${fecha}`);
+  console.log(`Iniciados ${iniciados} - Completados ${completados}`);
+  console.log("###############");
+  res.json({ fecha, iniciados, completados });
+});
+
+app.post('/analitica/eventos', exigirSesion, async (req, res) => {
+  const evento = String(req.body.evento || '');
+  const validacion = validarEvento(evento, req.body.propiedades);
+  if (!validacion.ok) {
+    return res.status(400).json({ error: validacion.error });
+  }
+
+  await prisma.evento.create({
+    data: {
+      usuarioId: req.usuario.id,
+      tipo: evento,
+      propiedades: validacion.propiedades,
+    },
+  });
+
+  res.status(201).json({ ok: true });
+});
 
 // ---------- Registro ----------
 app.post('/registro', async (req, res) => {
@@ -66,13 +179,16 @@ app.post('/registro', async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(contrasena, 10);
-    await pool.query(
-      'INSERT INTO usuarios (nombre, correo, contrasena_hash) VALUES ($1, $2, $3)',
-      [nombre, correo.trim().toLowerCase(), hash]
-    );
+    await prisma.usuario.create({
+      data: {
+        nombre,
+        correo: correo.trim().toLowerCase(),
+        contrasenaHash: hash,
+      },
+    });
     res.status(201).json({ mensaje: 'Cuenta creada' });
   } catch (e) {
-    if (e.code === '23505') {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return res.status(409).json({ error: 'Ese correo ya está registrado' });
     }
     throw e;
@@ -83,22 +199,22 @@ app.post('/registro', async (req, res) => {
 app.post('/login', async (req, res) => {
   const { correo, contrasena } = req.body;
 
-  const resultado = await pool.query(
-    'SELECT * FROM usuarios WHERE correo = $1',
-    [(correo || '').toLowerCase()]
-  );
-  const usuario = resultado.rows[0];
+  const usuario = await prisma.usuario.findUnique({
+    where: { correo: (correo || '').toLowerCase() },
+  });
 
-  if (!usuario || !(await bcrypt.compare(contrasena || '', usuario.contrasena_hash))) {
+  if (!usuario || !(await bcrypt.compare(contrasena || '', usuario.contrasenaHash))) {
     return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
   }
 
   const token = crypto.randomBytes(32).toString('hex');
-  await pool.query(
-    `INSERT INTO sesiones (token, usuario_id, expira_en)
-     VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-    [token, usuario.id]
-  );
+  await prisma.sesion.create({
+    data: {
+      token,
+      usuarioId: usuario.id,
+      expiraEn: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
 
   res.json({ token, nombre: usuario.nombre });
 });
@@ -110,26 +226,28 @@ app.get('/perfil', exigirSesion, (req, res) => {
 
 // ---------- Cierre de sesión ----------
 app.post('/logout', exigirSesion, async (req, res) => {
-  await pool.query('DELETE FROM sesiones WHERE token = $1', [req.token]);
+  await prisma.sesion.deleteMany({ where: { token: req.token } });
   res.json({ mensaje: 'Sesión cerrada' });
 });
 
 // ---------- Recuperación: genera un código de 6 dígitos ----------
 app.post('/recuperar', async (req, res) => {
-  const resultado = await pool.query(
-    'SELECT id FROM usuarios WHERE correo = $1',
-    [(req.body.correo || '').toLowerCase()]
-  );
-  if (resultado.rows.length === 0) {
+  const usuario = await prisma.usuario.findUnique({
+    where: { correo: (req.body.correo || '').toLowerCase() },
+    select: { id: true },
+  });
+  if (!usuario) {
     return res.status(404).json({ error: 'Ese correo no está registrado' });
   }
 
   const codigo = String(Math.floor(100000 + Math.random() * 900000));
-  await pool.query(
-    `INSERT INTO recuperaciones (usuario_id, codigo, expira_en)
-     VALUES ($1, $2, NOW() + INTERVAL '15 minutes')`,
-    [resultado.rows[0].id, codigo]
-  );
+  await prisma.recuperacion.create({
+    data: {
+      usuarioId: usuario.id,
+      codigo,
+      expiraEn: new Date(Date.now() + 15 * 60 * 1000),
+    },
+  });
 
   // No se envía correo real: el código se devuelve para mostrarlo en la app
   res.json({ codigo });
@@ -142,39 +260,42 @@ app.post('/cambiar-contrasena', async (req, res) => {
     return res.status(400).json({ error: 'La contraseña debe tener mínimo 6 caracteres' });
   }
 
-  const resultado = await pool.query(
-    `SELECT r.id, r.usuario_id
-     FROM recuperaciones r JOIN usuarios u ON u.id = r.usuario_id
-     WHERE u.correo = $1 AND r.codigo = $2 AND r.usado = FALSE AND r.expira_en > NOW()
-     ORDER BY r.id DESC LIMIT 1`,
-    [(correo || '').toLowerCase(), codigo]
-  );
-  if (resultado.rows.length === 0) {
+  const recuperacion = await prisma.recuperacion.findFirst({
+    where: {
+      codigo,
+      usado: false,
+      expiraEn: { gt: new Date() },
+      usuario: { correo: (correo || '').toLowerCase() },
+    },
+    orderBy: { id: 'desc' },
+  });
+  if (!recuperacion) {
     return res.status(400).json({ error: 'Código incorrecto o vencido' });
   }
 
-  const { id, usuario_id } = resultado.rows[0];
   const hash = await bcrypt.hash(nuevaContrasena, 10);
 
-  await pool.query('UPDATE usuarios SET contrasena_hash = $1 WHERE id = $2', [hash, usuario_id]);
-  await pool.query('UPDATE recuperaciones SET usado = TRUE WHERE id = $1', [id]);
-  await pool.query('DELETE FROM sesiones WHERE usuario_id = $1', [usuario_id]);
+  await prisma.$transaction([
+    prisma.usuario.update({
+      where: { id: recuperacion.usuarioId },
+      data: { contrasenaHash: hash },
+    }),
+    prisma.recuperacion.update({
+      where: { id: recuperacion.id },
+      data: { usado: true },
+    }),
+    prisma.sesion.deleteMany({ where: { usuarioId: recuperacion.usuarioId } }),
+  ]);
 
   res.json({ mensaje: 'Contraseña actualizada' });
 });
 
 // ---------- Movimientos ----------
-// fecha como texto y monto como número, para evitar problemas de zona horaria
-const COLUMNAS_MOVIMIENTO = `id, concepto, monto::float8 AS monto,
-  to_char(fecha, 'YYYY-MM-DD') AS fecha, tipo, categoria, estado`;
-
 // Guardar un evento en el historial, dentro de la misma transacción que la acción
-async function registrarEvento(cliente, { usuarioId, tipo, movimientoId = null, monto = null, descripcion = null }) {
-  await cliente.query(
-    `INSERT INTO eventos (usuario_id, tipo, movimiento_id, monto, descripcion)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [usuarioId, tipo, movimientoId, monto, descripcion]
-  );
+async function registrarEvento(tx, { usuarioId, tipo, movimientoId = null, monto = null, descripcion = null }) {
+  await tx.evento.create({
+    data: { usuarioId, tipo, movimientoId, monto, descripcion },
+  });
 }
 
 // Listar los movimientos de la persona con sesión, con búsqueda y filtros opcionales
@@ -184,14 +305,14 @@ app.get('/movimientos', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: lectura.error });
   }
 
-  const resultado = await pool.query(
-    `SELECT ${COLUMNAS_MOVIMIENTO} FROM movimientos
-     WHERE usuario_id = $1 ORDER BY fecha DESC, id DESC`,
-    [req.usuario.id]
-  );
+  const filas = await prisma.movimiento.findMany({
+    where: { usuarioId: req.usuario.id },
+    include: { recurrencia: { select: { frecuencia: true } } },
+    orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
+  });
 
   // El total sale de la misma lista filtrada que se devuelve: siempre coinciden
-  const movimientos = filtrarMovimientos(resultado.rows, lectura.filtros, hoyTexto());
+  const movimientos = filtrarMovimientos(filas.map(formatearMovimiento), lectura.filtros, hoyTexto());
   res.json({ movimientos, totales: calcularTotales(movimientos) });
 });
 
@@ -202,6 +323,8 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   const fecha = String(req.body.fecha || '');
   const tipo = req.body.tipo ?? 'gasto';
   const categoria = req.body.categoria ?? 'otros';
+  const recurrente = req.body.recurrente === true;
+  const frecuencia = req.body.frecuencia ?? null;
 
   if (!concepto || !fecha) {
     return res.status(400).json({ error: 'Completa todos los campos' });
@@ -218,6 +341,12 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
   if (!CATEGORIAS.includes(categoria)) {
     return res.status(400).json({ error: 'Categoría inválida' });
   }
+  if (recurrente && tipo !== 'gasto') {
+    return res.status(400).json({ error: 'Solo los gastos pueden ser recurrentes' });
+  }
+  if (recurrente && !FRECUENCIAS.includes(frecuencia)) {
+    return res.status(400).json({ error: 'Frecuencia inválida' });
+  }
 
   // Solo los gastos cuentan para el límite mensual (#6); un ingreso no se controla
   if (tipo === 'gasto') {
@@ -227,31 +356,90 @@ app.post('/movimientos', exigirSesion, async (req, res) => {
     }
   }
 
+  const montoDecimal = new Prisma.Decimal(monto);
+
   // El movimiento y su evento viajan en la misma transacción (Tarea 4)
-  const cliente = await pool.connect();
-  try {
-    await cliente.query('BEGIN');
-    const resultado = await cliente.query(
-      `INSERT INTO movimientos (usuario_id, concepto, monto, fecha, tipo, categoria)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${COLUMNAS_MOVIMIENTO}`,
-      [req.usuario.id, concepto, monto, fecha, tipo, categoria]
-    );
-    const guardado = resultado.rows[0];
-    await registrarEvento(cliente, {
+  const guardado = await prisma.$transaction(async (tx) => {
+    if (!recurrente) {
+      const movimiento = await tx.movimiento.create({
+        data: {
+          usuarioId: req.usuario.id,
+          concepto,
+          monto: montoDecimal,
+          fecha: textoAFecha(fecha),
+          tipo,
+          categoria,
+        },
+        include: { recurrencia: { select: { frecuencia: true } } },
+      });
+
+      await registrarEvento(tx, {
+        usuarioId: req.usuario.id,
+        tipo: tipo === 'ingreso' ? 'ingreso_registrado' : 'gasto_registrado',
+        movimientoId: movimiento.id,
+        monto: movimiento.monto,
+        descripcion: concepto,
+      });
+
+      return { movimiento, siguiente: null };
+    }
+
+    const fechaBase = textoAFecha(fecha);
+    const fechaSiguiente = sumarFrecuencia(fechaBase, frecuencia);
+    const fechaDespues = sumarFrecuencia(fechaSiguiente, frecuencia);
+
+    const recurrencia = await tx.recurrencia.create({
+      data: {
+        usuarioId: req.usuario.id,
+        concepto,
+        monto: montoDecimal,
+        categoria,
+        frecuencia,
+        proximaFecha: fechaDespues,
+      },
+    });
+
+    const movimiento = await tx.movimiento.create({
+      data: {
+        usuarioId: req.usuario.id,
+        recurrenciaId: recurrencia.id,
+        concepto,
+        monto: montoDecimal,
+        fecha: fechaBase,
+        tipo,
+        categoria,
+      },
+      include: { recurrencia: { select: { frecuencia: true } } },
+    });
+
+    const siguiente = await tx.movimiento.create({
+      data: {
+        usuarioId: req.usuario.id,
+        recurrenciaId: recurrencia.id,
+        concepto,
+        monto: montoDecimal,
+        fecha: fechaSiguiente,
+        tipo,
+        categoria,
+      },
+      include: { recurrencia: { select: { frecuencia: true } } },
+    });
+
+    await registrarEvento(tx, {
       usuarioId: req.usuario.id,
-      tipo: tipo === 'ingreso' ? 'ingreso_registrado' : 'gasto_registrado',
-      movimientoId: guardado.id,
-      monto: guardado.monto,
+      tipo: 'gasto_registrado',
+      movimientoId: movimiento.id,
+      monto: movimiento.monto,
       descripcion: concepto,
     });
-    await cliente.query('COMMIT');
-    res.status(201).json({ movimiento: guardado });
-  } catch (e) {
-    await cliente.query('ROLLBACK');
-    throw e;
-  } finally {
-    cliente.release();
-  }
+
+    return { movimiento, siguiente };
+  });
+
+  res.status(201).json({
+    movimiento: formatearMovimiento(guardado.movimiento),
+    siguiente: guardado.siguiente ? formatearMovimiento(guardado.siguiente) : null,
+  });
 });
 
 // Marcar como pagado: solo si está pendiente
@@ -262,45 +450,72 @@ app.post('/movimientos/:id/pagar', exigirSesion, async (req, res) => {
   }
 
   // El UPDATE y el evento viajan en la misma transacción (Tarea 4)
-  const cliente = await pool.connect();
-  try {
-    await cliente.query('BEGIN');
-    const resultado = await cliente.query(
-      `UPDATE movimientos SET estado = 'pagado'
-       WHERE id = $1 AND usuario_id = $2 AND estado = 'pendiente'
-       RETURNING ${COLUMNAS_MOVIMIENTO}`,
-      [id, req.usuario.id]
-    );
+  const guardado = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.movimiento.updateMany({
+      where: { id, usuarioId: req.usuario.id, estado: 'pendiente' },
+      data: { estado: 'pagado' },
+    });
 
-    if (resultado.rows.length === 0) {
-      // No se actualizó: no existe o ya estaba pagado. No hay nada que guardar.
-      await cliente.query('ROLLBACK');
-      const existe = await pool.query(
-        'SELECT 1 FROM movimientos WHERE id = $1 AND usuario_id = $2',
-        [id, req.usuario.id]
-      );
-      if (existe.rows.length === 0) {
-        return res.status(404).json({ error: 'Movimiento no encontrado' });
-      }
-      return res.status(409).json({ error: 'El movimiento ya está pagado' });
-    }
+    // No se actualizó: no existe o ya estaba pagado. No hay nada que guardar.
+    if (actualizado.count === 0) return null;
 
-    const guardado = resultado.rows[0];
-    await registrarEvento(cliente, {
+    const movimiento = await tx.movimiento.findUnique({
+      where: { id },
+      include: { recurrencia: true },
+    });
+    await registrarEvento(tx, {
       usuarioId: req.usuario.id,
       tipo: 'movimiento_pagado',
-      movimientoId: guardado.id,
-      monto: guardado.monto,
-      descripcion: guardado.concepto,
+      movimientoId: movimiento.id,
+      monto: movimiento.monto,
+      descripcion: movimiento.concepto,
     });
-    await cliente.query('COMMIT');
-    res.json({ movimiento: guardado });
-  } catch (e) {
-    await cliente.query('ROLLBACK');
-    throw e;
-  } finally {
-    cliente.release();
+
+    if (movimiento.recurrenciaId && movimiento.recurrencia?.activa) {
+      const recurrencia = movimiento.recurrencia;
+      const fechaSiguiente = recurrencia.proximaFecha;
+      const fechaDespues = sumarFrecuencia(fechaSiguiente, recurrencia.frecuencia);
+
+      const existente = await tx.movimiento.findFirst({
+        where: { recurrenciaId: recurrencia.id, fecha: fechaSiguiente },
+        select: { id: true },
+      });
+
+      if (!existente) {
+        await tx.movimiento.create({
+          data: {
+            usuarioId: recurrencia.usuarioId,
+            recurrenciaId: recurrencia.id,
+            concepto: recurrencia.concepto,
+            monto: recurrencia.monto,
+            fecha: fechaSiguiente,
+            tipo: 'gasto',
+            categoria: recurrencia.categoria,
+          },
+        });
+      }
+
+      await tx.recurrencia.update({
+        where: { id: recurrencia.id },
+        data: { proximaFecha: fechaDespues },
+      });
+    }
+
+    return movimiento;
+  });
+
+  if (!guardado) {
+    const existe = await prisma.movimiento.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+      select: { id: true },
+    });
+    if (!existe) {
+      return res.status(404).json({ error: 'Movimiento no encontrado' });
+    }
+    return res.status(409).json({ error: 'El movimiento ya está pagado' });
   }
+
+  res.json({ movimiento: formatearMovimiento(guardado) });
 });
 
 // Editar: si está pagado, el monto no puede cambiar. El tipo no se modifica.
@@ -328,40 +543,51 @@ app.put('/movimientos/:id', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Categoría inválida' });
   }
 
-  const actual = await pool.query(
-    'SELECT tipo FROM movimientos WHERE id = $1 AND usuario_id = $2',
-    [id, req.usuario.id]
-  );
-  if (actual.rows.length === 0) {
+  const actual = await prisma.movimiento.findFirst({
+    where: { id, usuarioId: req.usuario.id },
+    select: { tipo: true },
+  });
+  if (!actual) {
     return res.status(404).json({ error: 'Movimiento no encontrado' });
   }
 
   // Solo los gastos cuentan para el límite. El monto anterior de este movimiento no se cuenta.
-  if (actual.rows[0].tipo === 'gasto') {
+  if (actual.tipo === 'gasto') {
     const control = await controlarLimite(req.usuario.id, fecha, monto, id);
     if (!control.ok) {
       return res.status(422).json({ error: control.error });
     }
   }
 
+  const montoDecimal = new Prisma.Decimal(monto);
+
   // La restricción vive en el WHERE: si está pagado, el monto debe ser el mismo
-  const resultado = await pool.query(
-    `UPDATE movimientos
-     SET concepto = $3, monto = $4, fecha = $5, categoria = COALESCE($6, categoria)
-     WHERE id = $1 AND usuario_id = $2
-       AND (estado = 'pendiente' OR monto = $4)
-     RETURNING ${COLUMNAS_MOVIMIENTO}`,
-    [id, req.usuario.id, concepto, monto, fecha, categoria]
-  );
+  const resultado = await prisma.movimiento.updateMany({
+    where: {
+      id,
+      usuarioId: req.usuario.id,
+      OR: [{ estado: 'pendiente' }, { monto: montoDecimal }],
+    },
+    data: {
+      concepto,
+      monto: montoDecimal,
+      fecha: textoAFecha(fecha),
+      ...(categoria !== null ? { categoria } : {}),
+    },
+  });
 
   // Como el movimiento existe, no actualizar significa: pagado con otro monto
-  if (resultado.rows.length === 0) {
+  if (resultado.count === 0) {
     return res.status(409).json({
       error: 'Un movimiento pagado no permite modificar su monto.',
     });
   }
 
-  res.json({ movimiento: resultado.rows[0] });
+  const guardado = await prisma.movimiento.findUnique({
+    where: { id },
+    include: { recurrencia: { select: { frecuencia: true } } },
+  });
+  res.json({ movimiento: formatearMovimiento(guardado) });
 });
 
 // Eliminar
@@ -371,11 +597,10 @@ app.delete('/movimientos/:id', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Movimiento inválido' });
   }
 
-  const resultado = await pool.query(
-    'DELETE FROM movimientos WHERE id = $1 AND usuario_id = $2 RETURNING id',
-    [id, req.usuario.id]
-  );
-  if (resultado.rows.length === 0) {
+  const resultado = await prisma.movimiento.deleteMany({
+    where: { id, usuarioId: req.usuario.id },
+  });
+  if (resultado.count === 0) {
     return res.status(404).json({ error: 'Movimiento no encontrado' });
   }
   res.json({ mensaje: 'Movimiento eliminado' });
@@ -394,22 +619,29 @@ function primerDiaDelMes(mes) {
 
 // null si la persona no definió límite para ese mes
 async function leerLimite(usuarioId, mes) {
-  const resultado = await pool.query(
-    'SELECT monto::float8 AS monto FROM limites_mensuales WHERE usuario_id = $1 AND mes = $2',
-    [usuarioId, mes]
-  );
-  return resultado.rows.length === 0 ? null : resultado.rows[0].monto;
+  const limite = await prisma.limiteMensual.findUnique({
+    where: { usuarioId_mes: { usuarioId, mes: textoAFecha(mes) } },
+  });
+  return limite === null ? null : Number(limite.monto);
 }
 
 // Solo los movimientos de tipo gasto cuentan. idExcluido: el que se está editando
 async function gastadoDelMes(usuarioId, mes, idExcluido = 0) {
-  const resultado = await pool.query(
-    `SELECT COALESCE(SUM(monto), 0)::float8 AS gastado FROM movimientos
-     WHERE usuario_id = $1 AND id <> $3 AND tipo = 'gasto'
-       AND fecha >= $2::date AND fecha < $2::date + INTERVAL '1 month'`,
-    [usuarioId, mes, idExcluido]
-  );
-  return resultado.rows[0].gastado;
+  const desde = textoAFecha(mes);
+  const hasta = new Date(desde);
+  hasta.setUTCMonth(hasta.getUTCMonth() + 1);
+
+  const resultado = await prisma.movimiento.aggregate({
+    _sum: { monto: true },
+    where: {
+      usuarioId,
+      id: { not: idExcluido },
+      tipo: 'gasto',
+      fecha: { gte: desde, lt: hasta },
+    },
+  });
+
+  return resultado._sum.monto === null ? 0 : Number(resultado._sum.monto);
 }
 
 // Antes de guardar un gasto: ¿entra en el límite del mes de su fecha?
@@ -448,29 +680,374 @@ app.put('/limite', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: contraGastado.error });
   }
 
+  const mesFecha = textoAFecha(mes);
+  const montoDecimal = new Prisma.Decimal(Number(monto));
+
   // El límite y su evento viajan en la misma transacción (Tarea 4)
-  const cliente = await pool.connect();
-  try {
-    await cliente.query('BEGIN');
-    await cliente.query(
-      `INSERT INTO limites_mensuales (usuario_id, mes, monto) VALUES ($1, $2, $3)
-       ON CONFLICT (usuario_id, mes) DO UPDATE SET monto = EXCLUDED.monto, actualizado_en = NOW()`,
-      [req.usuario.id, mes, Number(monto)]
-    );
-    await registrarEvento(cliente, {
+  await prisma.$transaction(async (tx) => {
+    await tx.limiteMensual.upsert({
+      where: { usuarioId_mes: { usuarioId: req.usuario.id, mes: mesFecha } },
+      create: {
+        usuarioId: req.usuario.id,
+        mes: mesFecha,
+        monto: montoDecimal,
+      },
+      update: {
+        monto: montoDecimal,
+        actualizadoEn: new Date(),
+      },
+    });
+
+    await registrarEvento(tx, {
       usuarioId: req.usuario.id,
       tipo: 'limite_definido',
-      monto: Number(monto),
+      monto: montoDecimal,
       descripcion: `Límite del mes ${mes.slice(0, 7)}`,
     });
-    await cliente.query('COMMIT');
-  } catch (e) {
-    await cliente.query('ROLLBACK');
-    throw e;
-  } finally {
-    cliente.release();
-  }
+  });
+
   res.json({ mes: mes.slice(0, 7), ...calcularResumen({ limite: Number(monto), gastado }) });
+});
+
+app.put('/presupuestos-categoria', exigirSesion, async (req, res) => {
+  const { mes: mesPedido, categoria, monto } = req.body || {};
+
+  // valida el mes
+  const mes = primerDiaDelMes(mesPedido);
+  if (!mes) {
+    return res.status(400).json({ error: 'Mes inválido' });
+  }
+
+  // valida la categoria
+  if (!CATEGORIAS.includes(categoria)) {
+    return res.status(400).json({ error: 'Categoría inválida' });
+  }
+
+  // valida el monto
+  const validacion = validarMontoLimite(monto);
+  if (!validacion.ok) {
+    return res.status(400).json({ error: validacion.error });
+  }
+
+  // se guarda en prisma
+  const mesFecha = textoAFecha(mes);
+  const montoDecimal = new Prisma.Decimal(Number(monto));
+
+  const guardado = await prisma.presupuestoCategoria.upsert({
+    where: {
+      usuarioId_mes_categoria: {
+        usuarioId: req.usuario.id,
+        mes: mesFecha,
+        categoria,
+      },
+    },
+    create: {
+      usuarioId: req.usuario.id,
+      mes: mesFecha,
+      categoria,
+      monto: montoDecimal,
+    },
+    update: {
+      monto: montoDecimal,
+      actualizadoEn: new Date(),
+    },
+  });
+
+  res.json({
+    mes: mes.slice(0, 7),
+    categoria: guardado.categoria,
+    monto: Number(guardado.monto),
+  });
+});
+
+const redondear = (n) => Math.round(n * 100) / 100;
+
+app.get('/presupuestos-categoria', exigirSesion, async (req, res) => {
+
+  const mes = primerDiaDelMes(req.query.mes);
+  if (!mes) {
+    return res.status(400).json({ error: 'Mes inválido' });
+  }
+
+  // rango mes
+  const desde = textoAFecha(mes);
+  const hasta = new Date(desde);
+  hasta.setUTCMonth(hasta.getUTCMonth() + 1);
+
+  // los presupuestos y gastos reales
+  const [presupuestos, gastosPorCat] = await Promise.all([
+    prisma.presupuestoCategoria.findMany({
+      where: { usuarioId: req.usuario.id, mes: desde },
+    }),
+    prisma.movimiento.groupBy({
+      by: ['categoria'],
+      _sum: { monto: true },
+      where: {
+        usuarioId: req.usuario.id,
+        tipo: 'gasto',
+        fecha: { gte: desde, lt: hasta },
+      },
+    }),
+  ]);
+
+  // indices acomodados por categoria
+  const limitePorCat = new Map(
+    presupuestos.map((p) => [p.categoria, Number(p.monto)])
+  );
+  const gastadoPorCat = new Map(
+    gastosPorCat.map((g) => [g.categoria, Number(g._sum.monto ?? 0)])
+  );
+
+  // una fila por categoria, tenga o no presupuesto
+  const categorias = CATEGORIAS.map((categoria) => {
+    const limite = limitePorCat.has(categoria) ? limitePorCat.get(categoria) : null;
+    const gastado = redondear(gastadoPorCat.get(categoria) ?? 0);
+
+    return {
+      categoria,
+      limite,
+      gastado,
+      restante: limite !== null ? redondear(limite - gastado) : null,
+      proporcion: limite !== null ? redondear(gastado / limite) : null,
+    };
+  });
+
+  res.json({ mes: mes.slice(0, 7), categorias });
+});
+
+
+// ---------- Metas de ahorro ----------
+app.get('/metas', exigirSesion, async (req, res) => {
+  const metas = await prisma.metaAhorro.findMany({
+    where: { usuarioId: req.usuario.id },
+    orderBy: { creadoEn: 'asc' },
+  });
+  const resumen = await calcularResumenMetas(req.usuario.id);
+  res.json({ metas: metas.map(formatearMeta), resumen });
+});
+
+app.post('/metas', exigirSesion, async (req, res) => {
+  const nombre = validarNombreMeta(req.body.nombre);
+  if (!nombre.ok) return res.status(400).json({ error: nombre.error });
+
+  const monto = validarMontoMeta(req.body.montoObjetivo, 'monto objetivo');
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const fecha = validarFechaMeta(req.body.fechaObjetivo);
+  if (!fecha.ok) return res.status(400).json({ error: fecha.error });
+
+  try {
+    const meta = await prisma.metaAhorro.create({
+      data: {
+        usuarioId: req.usuario.id,
+        nombre: nombre.nombre,
+        montoObjetivo: new Prisma.Decimal(monto.monto),
+        fechaObjetivo: fecha.fecha,
+      },
+    });
+    const resumen = await calcularResumenMetas(req.usuario.id);
+    res.status(201).json({ meta: formatearMeta(meta), resumen });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Ya tienes una meta con ese nombre' });
+    }
+    throw error;
+  }
+});
+
+app.post('/metas/:id/asignar', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const meta = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    if (!meta) return { status: 404, error: 'Meta no encontrada' };
+
+    const resumen = await calcularResumenMetas(req.usuario.id, tx);
+    const control = validarAsignacion({
+      disponible: resumen.disponible,
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const actualizada = await tx.metaAhorro.update({
+      where: { id },
+      data: {
+        montoReservado: { increment: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.create({
+      data: {
+        usuarioId: req.usuario.id,
+        metaId: id,
+        tipo: 'asignacion',
+        monto: new Prisma.Decimal(monto.monto),
+      },
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return { meta: actualizada, resumen: nuevoResumen };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({ meta: formatearMeta(resultado.meta), resumen: resultado.resumen });
+});
+
+app.post('/metas/:id/retirar', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const meta = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    if (!meta) return { status: 404, error: 'Meta no encontrada' };
+
+    const control = validarRetiro({
+      reservado: Number(meta.montoReservado),
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const actualizada = await tx.metaAhorro.update({
+      where: { id },
+      data: {
+        montoReservado: { decrement: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.create({
+      data: {
+        usuarioId: req.usuario.id,
+        metaId: id,
+        tipo: 'retiro',
+        monto: new Prisma.Decimal(monto.monto),
+      },
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return { meta: actualizada, resumen: nuevoResumen };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({ meta: formatearMeta(resultado.meta), resumen: resultado.resumen });
+});
+
+app.post('/metas/:id/transferir', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  const metaDestinoId = Number(req.body.metaDestinoId);
+  if (!Number.isInteger(id) || !Number.isInteger(metaDestinoId)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+  if (id === metaDestinoId) {
+    return res.status(400).json({ error: 'Elige una meta de destino distinta' });
+  }
+
+  const monto = validarMontoMeta(req.body.monto);
+  if (!monto.ok) return res.status(400).json({ error: monto.error });
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    const origen = await tx.metaAhorro.findFirst({
+      where: { id, usuarioId: req.usuario.id },
+    });
+    const destino = await tx.metaAhorro.findFirst({
+      where: { id: metaDestinoId, usuarioId: req.usuario.id },
+    });
+    if (!origen || !destino) {
+      return { status: 404, error: 'Meta no encontrada' };
+    }
+
+    const control = validarTransferencia({
+      reservado: Number(origen.montoReservado),
+      monto: monto.monto,
+    });
+    if (!control.ok) return { status: 422, error: control.error };
+
+    const origenActualizado = await tx.metaAhorro.update({
+      where: { id: origen.id },
+      data: {
+        montoReservado: { decrement: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    const destinoActualizado = await tx.metaAhorro.update({
+      where: { id: destino.id },
+      data: {
+        montoReservado: { increment: new Prisma.Decimal(monto.monto) },
+        actualizadoEn: new Date(),
+      },
+    });
+    await tx.movimientoMeta.createMany({
+      data: [
+        {
+          usuarioId: req.usuario.id,
+          metaId: origen.id,
+          metaRelacionadaId: destino.id,
+          tipo: 'transferencia_salida',
+          monto: new Prisma.Decimal(monto.monto),
+        },
+        {
+          usuarioId: req.usuario.id,
+          metaId: destino.id,
+          metaRelacionadaId: origen.id,
+          tipo: 'transferencia_entrada',
+          monto: new Prisma.Decimal(monto.monto),
+        },
+      ],
+    });
+    const nuevoResumen = await calcularResumenMetas(req.usuario.id, tx);
+    return {
+      meta: origenActualizado,
+      metaDestino: destinoActualizado,
+      resumen: nuevoResumen,
+    };
+  });
+
+  if (resultado.error) {
+    return res.status(resultado.status).json({ error: resultado.error });
+  }
+  res.json({
+    meta: formatearMeta(resultado.meta),
+    metaDestino: formatearMeta(resultado.metaDestino),
+    resumen: resultado.resumen,
+  });
+});
+
+app.get('/metas/:id/movimientos', exigirSesion, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Meta inválida' });
+  }
+
+  const meta = await prisma.metaAhorro.findFirst({
+    where: { id, usuarioId: req.usuario.id },
+    select: { id: true },
+  });
+  if (!meta) {
+    return res.status(404).json({ error: 'Meta no encontrada' });
+  }
+
+  const filas = await prisma.movimientoMeta.findMany({
+    where: { usuarioId: req.usuario.id, metaId: id },
+    include: { metaRelacionada: { select: { nombre: true } } },
+    orderBy: { creadoEn: 'desc' },
+  });
+  res.json({ movimientos: filas.map(formatearMovimientoMeta) });
 });
 
 // ---------- Historial de actividad (Tarea 4) ----------
@@ -480,14 +1057,25 @@ app.get('/historial', exigirSesion, async (req, res) => {
     return res.status(400).json({ error: 'Filtro inválido' });
   }
 
-  const resultado = await pool.query(
-    `SELECT id, tipo, movimiento_id, monto::float8 AS monto, descripcion, creado_en
-     FROM eventos WHERE usuario_id = $1
-     ORDER BY creado_en DESC LIMIT 50`,
-    [req.usuario.id]
-  );
+  const filas = await prisma.evento.findMany({
+    where: {
+      usuarioId: req.usuario.id,
+      tipo: { notIn: Object.keys(EVENTOS) },
+    },
+    orderBy: { creadoEn: 'desc' },
+    take: 50,
+  });
 
-  const grupos = armarHistorial(resultado.rows, filtro, new Date());
+  const eventos = filas.map((evento) => ({
+    id: evento.id,
+    tipo: evento.tipo,
+    movimiento_id: evento.movimientoId,
+    monto: evento.monto === null ? null : Number(evento.monto),
+    descripcion: evento.descripcion,
+    creado_en: evento.creadoEn,
+  }));
+
+  const grupos = armarHistorial(eventos, filtro, new Date());
   res.json({ grupos });
 });
 
@@ -497,5 +1085,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error del servidor' });
 });
 
-const puerto = process.env.PUERTO || 3000;
-app.listen(puerto, () => console.log(`Servidor en http://localhost:${puerto}`));
+if (require.main === module) {
+  app.listen(puerto, () => console.log(`Servidor en http://localhost:${puerto}`));
+}
+
+module.exports = app;
+
+

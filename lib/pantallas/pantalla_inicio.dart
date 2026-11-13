@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../widgets/fondo_decorativo.dart';
 import '../widgets/boton_pildora.dart';
@@ -49,14 +50,16 @@ class PantallaInicio extends StatelessWidget {
                   BotonPildora(
                     texto: 'Iniciar sesión',
                     icono: Icons.person_outline,
-                    alPresionar: () => Navigator.pushNamed(context, Rutas.login),
+                    alPresionar: () =>
+                        Navigator.pushNamed(context, Rutas.login),
                   ),
                   const SizedBox(height: 16),
                   BotonPildora(
                     texto: 'Registrarse',
                     icono: Icons.person_add_alt_outlined,
                     esRelleno: false,
-                    alPresionar: () => Navigator.pushNamed(context, Rutas.registro),
+                    alPresionar: () =>
+                        Navigator.pushNamed(context, Rutas.registro),
                   ),
                   const Spacer(flex: 2),
                   _enlaceOlvidaste(context),
@@ -80,8 +83,14 @@ class PantallaInicio extends StatelessWidget {
           letterSpacing: -1,
         ),
         children: [
-          TextSpan(text: 'Uni', style: TextStyle(color: Colores.azulOscuro)),
-          TextSpan(text: 'Budget', style: TextStyle(color: Colores.verdeOscuro)),
+          TextSpan(
+            text: 'Uni',
+            style: TextStyle(color: Colores.azulOscuro),
+          ),
+          TextSpan(
+            text: 'Budget',
+            style: TextStyle(color: Colores.verdeOscuro),
+          ),
         ],
       ),
       textAlign: TextAlign.center,

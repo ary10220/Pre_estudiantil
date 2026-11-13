@@ -1,6 +1,6 @@
 // Historial de actividad (Tarea 4): función pura que arma los grupos del día.
 // Sin base de datos: se puede probar sola.
-const FILTROS = ['todos', 'gastos', 'pagos', 'limite'];
+const FILTROS = ['todos', 'gastos', 'ingresos', 'pagos', 'limite'];
 
 const TIPOS_EVENTO = ['gasto_registrado', 'ingreso_registrado', 'movimiento_pagado', 'limite_definido'];
 
@@ -39,11 +39,11 @@ function horaTexto(fecha) {
   return `${h}:${m}`;
 }
 
-// Chip 'gastos' = solo gasto_registrado. Los ingresos aparecen solo en 'todos'.
-// Decidido con la usuaria para no pasar de 4 chips (Hick).
+// Chips del historial: cada filtro deja pasar un solo tipo de evento.
 function pasaFiltro(tipo, filtro) {
   if (filtro === 'todos') return true;
   if (filtro === 'gastos') return tipo === 'gasto_registrado';
+  if (filtro === 'ingresos') return tipo === 'ingreso_registrado';
   if (filtro === 'pagos') return tipo === 'movimiento_pagado';
   if (filtro === 'limite') return tipo === 'limite_definido';
   return false;

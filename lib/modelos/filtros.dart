@@ -6,7 +6,8 @@ enum ClaveFiltro { buscar, tipo, categoria, estado, periodo }
 
 // Mismos mensajes que servidor/filtros.js
 const String mensajeRangoIncompleto = 'Elige las dos fechas del rango';
-const String mensajeRangoInvertido = 'La fecha "desde" no puede ser posterior a "hasta"';
+const String mensajeRangoInvertido =
+    'La fecha "desde" no puede ser posterior a "hasta"';
 
 // Un filtro activo, para mostrarlo como chip que se puede quitar
 class FiltroActivo {
@@ -93,12 +94,20 @@ class FiltrosMovimientos {
   List<FiltroActivo> get activos {
     final lista = <FiltroActivo>[];
     if (buscar.trim().isNotEmpty) {
-      lista.add(FiltroActivo(ClaveFiltro.buscar, 'Búsqueda: "${buscar.trim()}"'));
+      lista.add(
+        FiltroActivo(ClaveFiltro.buscar, 'Búsqueda: "${buscar.trim()}"'),
+      );
     }
     if (tipo != null) lista.add(FiltroActivo(ClaveFiltro.tipo, tipo!.texto));
-    if (categoria != null) lista.add(FiltroActivo(ClaveFiltro.categoria, categoria!.texto));
-    if (estado != null) lista.add(FiltroActivo(ClaveFiltro.estado, estado!.texto));
-    if (periodo != null) lista.add(FiltroActivo(ClaveFiltro.periodo, _textoPeriodo()));
+    if (categoria != null) {
+      lista.add(FiltroActivo(ClaveFiltro.categoria, categoria!.texto));
+    }
+    if (estado != null) {
+      lista.add(FiltroActivo(ClaveFiltro.estado, estado!.texto));
+    }
+    if (periodo != null) {
+      lista.add(FiltroActivo(ClaveFiltro.periodo, _textoPeriodo()));
+    }
     return lista;
   }
 

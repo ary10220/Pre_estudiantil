@@ -12,21 +12,35 @@ String? validarMontoLimite(String valor) {
   if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(texto) || double.parse(texto) <= 0) {
     return mensajeLimiteNoValido;
   }
-  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(texto)) return mensajeLimiteDecimales;
+  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(texto)) {
+    return mensajeLimiteDecimales;
+  }
   return null;
 }
 
 double leerLimite(String valor) => double.parse(_normalizar(valor));
 
-String formatearBs(double monto) => 'Bs ${monto.toStringAsFixed(2).replaceAll('.', ',')}';
+String formatearBs(double monto) =>
+    'Bs ${monto.toStringAsFixed(2).replaceAll('.', ',')}';
 
 const List<String> _nombresMeses = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
 ];
 
 // 'AAAA-MM' → 'octubre'
-String nombreMes(String mes) => _nombresMeses[int.parse(mes.substring(5, 7)) - 1];
+String nombreMes(String mes) =>
+    _nombresMeses[int.parse(mes.substring(5, 7)) - 1];
 
 // Confirmación junto al botón al guardar el límite (clase 15, hallazgo 1)
 String textoConfirmacionLimite(ResumenLimite r) =>
@@ -41,16 +55,28 @@ class AvisoGasto {
 }
 
 // montoAnterior: al editar un gasto del mismo mes, su monto vuelve a estar disponible
-AvisoGasto avisoGasto(ResumenLimite r, double? monto, {double montoAnterior = 0}) {
-  final disponible = (r.restante! * 100).round() + (montoAnterior * 100).round();
-  final queda = 'Te quedan ${formatearBs(disponible / 100)} en ${nombreMes(r.mes!)}.';
+AvisoGasto avisoGasto(
+  ResumenLimite r,
+  double? monto, {
+  double montoAnterior = 0,
+}) {
+  final disponible =
+      (r.restante! * 100).round() + (montoAnterior * 100).round();
+  final queda =
+      'Te quedan ${formatearBs(disponible / 100)} en ${nombreMes(r.mes!)}.';
   if (monto == null || monto <= 0) return AvisoGasto(queda, false);
 
   final despues = disponible - (monto * 100).round();
   if (despues < 0) {
-    return AvisoGasto('$queda Con este gasto te pasarías por ${formatearBs(-despues / 100)}.', true);
+    return AvisoGasto(
+      '$queda Con este gasto te pasarías por ${formatearBs(-despues / 100)}.',
+      true,
+    );
   }
-  return AvisoGasto('$queda Con este gasto te quedarían ${formatearBs(despues / 100)}.', false);
+  return AvisoGasto(
+    '$queda Con este gasto te quedarían ${formatearBs(despues / 100)}.',
+    false,
+  );
 }
 
 class ResumenLimite {
@@ -78,7 +104,8 @@ class ResumenLimite {
   bool get tieneLimite => limite != null;
 
   // De 0 a 1, para la barra de progreso
-  double get proporcion => tieneLimite ? (gastado / limite!).clamp(0, 1).toDouble() : 0;
+  double get proporcion =>
+      tieneLimite ? (gastado / limite!).clamp(0, 1).toDouble() : 0;
 
   // Color de aviso al pasar el 80 %
   bool get enAviso => tieneLimite && gastado > limite! * 0.8;

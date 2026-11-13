@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/evento.dart';
@@ -48,7 +49,9 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
 
   String _mensajeError(Exception e) {
     final texto = e.toString();
-    return texto.startsWith('Instance of ') ? 'No se pudo cargar el historial' : texto;
+    return texto.startsWith('Instance of ')
+        ? 'No se pudo cargar el historial'
+        : texto;
   }
 
   Future<void> _cambiarFiltro(FiltroHistorial nuevo) async {
@@ -79,30 +82,28 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
     );
   }
 
-  // Hick: 4 chips mutuamente excluyentes. Ingresos aparecen solo en "Todos".
+  // Hick: 5 chips mutuamente excluyentes organizados en Wrap.
+  // Todos estan visibles sin necesidad de scroll horizontal.
   Widget _barraFiltros() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final f in FiltroHistorial.values) ...[
-            ChoiceChip(
-              label: Text(f.etiqueta),
-              selected: _filtro == f,
-              onSelected: (_) => _cambiarFiltro(f),
-              selectedColor: Colores.verdeOscuro,
-              backgroundColor: Colores.verdeClaro,
-              labelStyle: TextStyle(
-                color: _filtro == f ? Colors.white : Colores.verdeOscuro,
-                fontWeight: FontWeight.w600,
-              ),
-              side: BorderSide.none,
-              showCheckmark: false,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final f in FiltroHistorial.values)
+          ChoiceChip(
+            label: Text(f.etiqueta),
+            selected: _filtro == f,
+            onSelected: (_) => _cambiarFiltro(f),
+            selectedColor: Colores.verdeOscuro,
+            backgroundColor: Colores.verdeClaro,
+            labelStyle: TextStyle(
+              color: _filtro == f ? Colors.white : Colores.verdeOscuro,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+            side: BorderSide.none,
+            showCheckmark: false,
+          ),
+      ],
     );
   }
 
@@ -145,7 +146,10 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
           if (sinFiltro)
             FilledButton.icon(
               onPressed: () async {
-                final creado = await Navigator.pushNamed(context, Rutas.nuevoMovimiento);
+                final creado = await Navigator.pushNamed(
+                  context,
+                  Rutas.nuevoMovimiento,
+                );
                 if (creado == true) await _cargar();
               },
               style: FilledButton.styleFrom(
@@ -238,10 +242,16 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
                         ),
                       ),
                     if (evento.monto != null)
-                      const Text(' · ', style: TextStyle(color: Colores.grisAzulado)),
+                      const Text(
+                        ' · ',
+                        style: TextStyle(color: Colores.grisAzulado),
+                      ),
                     Text(
                       evento.hora,
-                      style: const TextStyle(fontSize: 14, color: Colores.grisAzulado),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colores.grisAzulado,
+                      ),
                     ),
                   ],
                 ),
@@ -261,7 +271,8 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
           colorIcono: Colores.rojo,
           fondoIcono: const Color(0xFFFFE0E0),
           colorMonto: Colores.rojo,
-          frase: (d) => d.isEmpty ? 'Registraste un gasto' : 'Registraste gasto: $d',
+          frase: (d) =>
+              d.isEmpty ? 'Registraste un gasto' : 'Registraste gasto: $d',
         );
       case TipoEvento.ingresoRegistrado:
         return _EstiloEvento(
@@ -269,7 +280,8 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
           colorIcono: Colores.verdeOscuro,
           fondoIcono: Colores.verdeClaro,
           colorMonto: Colores.verdeOscuro,
-          frase: (d) => d.isEmpty ? 'Registraste un ingreso' : 'Registraste ingreso: $d',
+          frase: (d) =>
+              d.isEmpty ? 'Registraste un ingreso' : 'Registraste ingreso: $d',
         );
       case TipoEvento.movimientoPagado:
         return _EstiloEvento(
@@ -277,7 +289,9 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
           colorIcono: Colores.verdeOscuro,
           fondoIcono: Colores.verdeClaro,
           colorMonto: Colores.azulOscuro,
-          frase: (d) => d.isEmpty ? 'Marcaste como pagado un movimiento' : 'Marcaste como pagado: $d',
+          frase: (d) => d.isEmpty
+              ? 'Marcaste como pagado un movimiento'
+              : 'Marcaste como pagado: $d',
         );
       case TipoEvento.limiteDefinido:
         return _EstiloEvento(
@@ -285,7 +299,9 @@ class _PantallaHistorialState extends State<PantallaHistorial> {
           colorIcono: Colores.verdeOscuro,
           fondoIcono: Colores.verdeClaro,
           colorMonto: Colores.azulOscuro,
-          frase: (d) => d.isEmpty ? 'Definiste tu límite mensual' : 'Definiste tu límite: $d',
+          frase: (d) => d.isEmpty
+              ? 'Definiste tu límite mensual'
+              : 'Definiste tu límite: $d',
         );
     }
   }

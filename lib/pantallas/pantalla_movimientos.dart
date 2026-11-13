@@ -1,17 +1,25 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../configuracion/constantes.dart';
 import '../configuracion/rutas.dart';
 import '../modelos/filtros.dart';
 import '../modelos/limite.dart';
+import '../modelos/meta_ahorro.dart';
 import '../modelos/movimiento.dart';
 import '../servicios/servicio_acceso.dart';
 import '../servicios/servicio_limite.dart';
+import '../servicios/servicio_metas.dart';
 import '../servicios/servicio_movimientos.dart';
 import '../widgets/campo_texto.dart';
 import '../widgets/hoja_filtros.dart';
 import '../widgets/mensajes.dart';
 import 'pantalla_nuevo_movimiento.dart';
+import '../modelos/presupuesto_categoria.dart';
+import '../servicios/analitica.dart';
+
+enum _VistaMovimientos { todos, pendientes, pagados, recurrentes }
 
 class PantallaMovimientos extends StatefulWidget {
   const PantallaMovimientos({super.key});
@@ -23,9 +31,11 @@ class PantallaMovimientos extends StatefulWidget {
 class _PantallaMovimientosState extends State<PantallaMovimientos> {
   String? _nombre;
   List<Movimiento> _movimientos = [];
-  TotalesMovimientos? _totales;
   bool _cargandoLista = true;
   ResumenLimite? _resumen;
+  ResumenMetas? _resumenMetas;
+  List<PresupuestoCategoria> _categorias = [];
+  _VistaMovimientos _vista = _VistaMovimientos.todos;
 
   // Búsqueda y filtros (#7)
   FiltrosMovimientos _filtros = FiltrosMovimientos.vacio;
@@ -74,13 +84,32 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     try {
       final listado = await ServicioMovimientos.listar(_filtros);
       final resumen = await ServicioLimite.leer();
+      final categorias = await ServicioLimite.leerPorCategoria();
+
+      ResumenMetas? resumenMetas;
+      try {
+        final metas = await ServicioMetas.listar();
+        resumenMetas = metas.resumen;
+      } on SesionExpirada {
+        rethrow;
+      } on ErrorAcceso {
+        // La pantalla sigue funcionando aunque falle el resumen de metas.
+      }
+
       if (!mounted || numero != _peticion) return;
       setState(() {
         _movimientos = listado.movimientos;
-        _totales = listado.totales;
         _resumen = resumen;
+        _resumenMetas = resumenMetas;
+        _categorias = categorias;
         _cargandoLista = false;
       });
+
+      // Analitica, si hay filtros o texto de busqueda y la lista da 0 resultados
+      if (_movimientos.isEmpty && _filtros.hayFiltros) {
+        final origen = _filtros.buscar.isNotEmpty ? 'texto' : 'filtros';
+        AnaliticaServicio.track('busqueda_sin_resultados', {'origen': origen});
+      }
     } on SesionExpirada {
       if (!mounted) return;
       _volverAlLogin();
@@ -143,6 +172,15 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     await Navigator.pushNamed(context, Rutas.historial);
   }
 
+  // Future<void> _abrirAnalitica() async {
+  //   await Navigator.pushNamed(context, Rutas.analitica);
+  // }
+
+  Future<void> _abrirMetas() async {
+    await Navigator.pushNamed(context, Rutas.metas);
+    await _cargarMovimientos();
+  }
+
   // Editar: abre el mismo formulario con los datos del movimiento
   Future<void> _editar(Movimiento movimiento) async {
     final cambiado = await Navigator.push<bool>(
@@ -175,12 +213,17 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(contexto, false),
-            child: const Text('Cancelar', style: TextStyle(color: Colores.verdeOscuro)),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Colores.verdeOscuro),
+            ),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(contexto, true),
             style: FilledButton.styleFrom(
-              backgroundColor: esPeligro ? Colors.red.shade700 : Colores.verdeOscuro,
+              backgroundColor: esPeligro
+                  ? Colors.red.shade700
+                  : Colores.verdeOscuro,
             ),
             child: Text(textoConfirmar),
           ),
@@ -223,7 +266,8 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   Future<void> _eliminar(Movimiento movimiento) async {
     final confirmado = await _pedirConfirmacion(
       titulo: 'Eliminar movimiento',
-      mensaje: '¿Deseas eliminar "${movimiento.concepto}"? Esta acción no se puede deshacer.',
+      mensaje:
+          '¿Deseas eliminar "${movimiento.concepto}"? Esta acción no se puede deshacer.',
       textoConfirmar: 'Eliminar',
       esPeligro: true,
     );
@@ -247,8 +291,7 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   Future<void> _cerrarSesion() async {
     final confirmado = await _pedirConfirmacion(
       titulo: '¿Cerrar sesión?',
-      mensaje:
-          '¿Deseas cerrar tu sesión? Tendrás que iniciar sesión de nuevo para entrar.',
+      mensaje: '¿Deseas cerrar tu sesión? Tendrás que iniciar sesión de nuevo para entrar.',
       textoConfirmar: 'Cerrar sesión',
     );
     if (!confirmado || !mounted) return;
@@ -262,7 +305,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     // Mientras se verifica la sesión no se muestra contenido privado
     if (_nombre == null) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colores.verdeOscuro)),
+        body: Center(
+          child: CircularProgressIndicator(color: Colores.verdeOscuro),
+        ),
       );
     }
 
@@ -294,6 +339,19 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               style: TextStyle(color: Colores.verdeOscuro),
             ),
           ),
+          // Analítica: acceso visible y alcanzable desde la app
+          // TextButton.icon(
+          //   onPressed: _abrirAnalitica,
+          //   icon: const Icon(
+          //     Icons.analytics_outlined,
+          //     color: Colores.verdeOscuro,
+          //   ),
+          //   label: const Text(
+          //     'Analítica',
+          //     style: TextStyle(color: Colores.verdeOscuro),
+          //   ),
+          //   style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+          // ),
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout, color: Colores.verdeOscuro),
@@ -327,6 +385,12 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               _tarjetaLimite(_resumen!),
               const SizedBox(height: 16),
             ],
+            if (_resumenMetas != null) ...[
+              _tarjetaMetas(),
+              const SizedBox(height: 16),
+            ],
+            _chipsVista(),
+            const SizedBox(height: 8),
             _barraBusqueda(),
             _filtrosActivos(),
             _lineaTotales(),
@@ -340,7 +404,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
 
   // Buscador por concepto + botón de filtros (con la cantidad de filtros aplicados)
   Widget _barraBusqueda() {
-    final cantidad = _filtros.activos.where((a) => a.clave != ClaveFiltro.buscar).length;
+    final cantidad = _filtros.activos
+        .where((a) => a.clave != ClaveFiltro.buscar)
+        .length;
 
     return Row(
       children: [
@@ -394,17 +460,85 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
           if (activos.length > 1)
             TextButton(
               onPressed: _quitarTodos,
-              child: const Text('Quitar todos', style: TextStyle(color: Colores.verdeOscuro)),
+              child: const Text(
+                'Quitar todos',
+                style: TextStyle(color: Colores.verdeOscuro),
+              ),
             ),
         ],
       ),
     );
   }
 
-  // Total de la lista que se está viendo (lo calcula el servidor sobre esa misma lista)
+  List<Movimiento> get _visibles {
+    switch (_vista) {
+      case _VistaMovimientos.todos:
+        return _movimientos;
+      case _VistaMovimientos.pendientes:
+        return _movimientos
+            .where((m) => m.estado == EstadoMovimiento.pendiente)
+            .toList();
+      case _VistaMovimientos.pagados:
+        return _movimientos
+            .where((m) => m.estado == EstadoMovimiento.pagado)
+            .toList();
+      case _VistaMovimientos.recurrentes:
+        return _movimientos.where((m) => m.recurrente).toList();
+    }
+  }
+
+  TotalesMovimientos _totalesDe(List<Movimiento> movimientos) {
+    var ingresos = 0.0;
+    var gastos = 0.0;
+    for (final movimiento in movimientos) {
+      if (movimiento.esIngreso) {
+        ingresos += movimiento.monto;
+      } else {
+        gastos += movimiento.monto;
+      }
+    }
+    return TotalesMovimientos(
+      cantidad: movimientos.length,
+      ingresos: ingresos,
+      gastos: gastos,
+    );
+  }
+
+  Widget _chipsVista() {
+    return Wrap(
+      spacing: 8,
+      children: [
+        _chipVista('Todos', _VistaMovimientos.todos),
+        _chipVista('Pendientes', _VistaMovimientos.pendientes),
+        _chipVista('Pagados', _VistaMovimientos.pagados),
+        _chipVista('Recurrentes', _VistaMovimientos.recurrentes),
+      ],
+    );
+  }
+
+  Widget _chipVista(String texto, _VistaMovimientos vista) {
+    final elegido = _vista == vista;
+    return ChoiceChip(
+      label: Text(texto),
+      selected: elegido,
+      showCheckmark: false,
+      selectedColor: Colores.verdeClaro,
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: elegido ? Colores.verdeOscuro : Colores.azulOscuro,
+        fontWeight: elegido ? FontWeight.w700 : FontWeight.w500,
+      ),
+      side: BorderSide(
+        color: elegido ? Colores.verdeOscuro : Colores.verdeClaro,
+      ),
+      onSelected: (_) => setState(() => _vista = vista),
+    );
+  }
+
+  // Total de la lista visible según el chip seleccionado
   Widget _lineaTotales() {
-    final t = _totales;
-    if (t == null || _cargandoLista) return const SizedBox.shrink();
+    final t = _totalesDe(_visibles);
+    if (_cargandoLista) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -414,15 +548,24 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         children: [
           Text(
             '${t.cantidad} ${t.cantidad == 1 ? 'movimiento' : 'movimientos'}',
-            style: const TextStyle(fontWeight: FontWeight.w700, color: Colores.azulOscuro),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colores.azulOscuro,
+            ),
           ),
           Text(
             'Ingresos ${formatearBs(t.ingresos)}',
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.verdeOscuro),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colores.verdeOscuro,
+            ),
           ),
           Text(
             'Gastos ${formatearBs(t.gastos)}',
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colores.rojo),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colores.rojo,
+            ),
           ),
         ],
       ),
@@ -435,8 +578,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
         child: CircularProgressIndicator(color: Colores.verdeOscuro),
       );
     }
-    if (_movimientos.isEmpty) {
-      // Con filtros: ninguno coincide. Sin filtros: aún no hay movimientos.
+
+    final movimientos = _visibles;
+    if (movimientos.isEmpty) {
       if (_filtros.hayFiltros) {
         return Center(
           child: Column(
@@ -445,7 +589,11 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
               const Text(
                 'Ningún movimiento coincide\ncon la búsqueda o los filtros.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colores.grisAzulado, height: 1.5),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colores.grisAzulado,
+                  height: 1.5,
+                ),
               ),
               TextButton(
                 onPressed: _quitarTodos,
@@ -458,19 +606,179 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
           ),
         );
       }
+
+      if (_vista == _VistaMovimientos.recurrentes) {
+        return const Center(
+          child: Text(
+            'No tienes gastos recurrentes.\nCrea uno desde Nuevo movimiento.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      if (_vista == _VistaMovimientos.pendientes) {
+        return const Center(
+          child: Text(
+            'No tienes movimientos pendientes.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
+      if (_vista == _VistaMovimientos.pagados) {
+        return const Center(
+          child: Text(
+            'No tienes movimientos pagados.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colores.grisAzulado,
+              height: 1.5,
+            ),
+          ),
+        );
+      }
+
       return const Center(
         child: Text(
           'Aún no tienes movimientos.\nCrea el primero con el botón de abajo.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colores.grisAzulado, height: 1.5),
+          style: TextStyle(
+            fontSize: 16,
+            color: Colores.grisAzulado,
+            height: 1.5,
+          ),
         ),
       );
     }
-    return ListView.separated(
+
+    final ahora = DateTime.now();
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final grupos = <String, List<Movimiento>>{
+      'Vencidos': [],
+      'Hoy': [],
+      'Próximos': [],
+      'Anteriores': [],
+    };
+
+    for (final movimiento in movimientos) {
+      final fecha = DateTime(
+        movimiento.fecha.year,
+        movimiento.fecha.month,
+        movimiento.fecha.day,
+      );
+
+      if (fecha.isBefore(hoy)) {
+        if (movimiento.estado == EstadoMovimiento.pendiente) {
+          grupos['Vencidos']!.add(movimiento);
+        } else {
+          grupos['Anteriores']!.add(movimiento);
+        }
+      } else if (fecha.isAtSameMomentAs(hoy)) {
+        grupos['Hoy']!.add(movimiento);
+      } else {
+        grupos['Próximos']!.add(movimiento);
+      }
+    }
+
+    final widgets = <Widget>[];
+    for (final grupo in grupos.entries) {
+      if (grupo.value.isEmpty) continue;
+
+      if (grupo.key == 'Próximos') {
+        grupo.value.sort((a, b) => a.fecha.compareTo(b.fecha));
+      } else {
+        grupo.value.sort((a, b) => b.fecha.compareTo(a.fecha));
+      }
+
+      widgets.add(_encabezadoGrupo(grupo.key, grupo.value.length));
+      for (final movimiento in grupo.value) {
+        widgets.add(_tarjeta(movimiento));
+        widgets.add(const SizedBox(height: 12));
+      }
+    }
+
+    return ListView(
       padding: const EdgeInsets.only(bottom: 96),
-      itemCount: _movimientos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, i) => _tarjeta(_movimientos[i]),
+      children: widgets,
+    );
+  }
+
+  Widget _encabezadoGrupo(String titulo, int cantidad) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
+      child: Text(
+        '$titulo ($cantidad)',
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: Colores.azulOscuro,
+        ),
+      ),
+    );
+  }
+
+  Widget _tarjetaMetas() {
+    final resumen = _resumenMetas!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colores.verdeClaro),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.savings_outlined, color: Colores.verdeOscuro),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Metas de ahorro',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colores.azulOscuro,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _abrirMetas,
+                child: const Text(
+                  'Ver metas',
+                  style: TextStyle(color: Colores.verdeOscuro),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Disponible ${resumen.disponibleTexto}',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colores.verdeOscuro,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Reservado ${resumen.reservadoTexto}',
+            style: const TextStyle(color: Colores.grisAzulado),
+          ),
+        ],
+      ),
     );
   }
 
@@ -483,7 +791,9 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: r.enAviso ? Colores.aviso : Colores.verdeClaro),
+        border: Border.all(
+          color: r.enAviso ? Colores.aviso : Colores.verdeClaro,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -513,6 +823,19 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                 : 'Te pasaste por ${formatearBs(-restante)}',
             style: TextStyle(fontWeight: FontWeight.w600, color: color),
           ),
+
+          // Lanza aviso por categoria
+          for (final cat in _categorias.where((c) => c.excedido)) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Atencion: Te pasaste en ${cat.categoria} por ${formatearBs(-cat.restante!)}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.red,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -559,11 +882,31 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             '${m.tipo.texto} · ${m.categoria.texto} · ${m.fechaTexto}',
             style: const TextStyle(color: Colores.grisAzulado),
           ),
+          if (m.recurrente) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.repeat, size: 16, color: Colores.verdeOscuro),
+                const SizedBox(width: 4),
+                Text(
+                  m.recurrenciaTexto,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colores.verdeOscuro,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: pagado ? Colores.verdeClaro : const Color(0xFFFFE9C7),
                   borderRadius: BorderRadius.circular(20),
@@ -572,17 +915,24 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
                   m.estadoTexto,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: pagado ? Colores.verdeOscuro : const Color(0xFF8A5A00),
+                    color: pagado
+                        ? Colores.verdeOscuro
+                        : const Color(0xFF8A5A00),
                   ),
                 ),
               ),
               const Spacer(),
               IconButton(
+                key: ValueKey('editar-${m.concepto}'),
                 tooltip: 'Editar',
-                icon: const Icon(Icons.edit_outlined, color: Colores.verdeOscuro),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: Colores.verdeOscuro,
+                ),
                 onPressed: () => _editar(m),
               ),
               IconButton(
+                key: ValueKey('eliminar-${m.concepto}'),
                 tooltip: 'Eliminar',
                 icon: Icon(Icons.delete_outline, color: Colors.red.shade700),
                 onPressed: () => _eliminar(m),
