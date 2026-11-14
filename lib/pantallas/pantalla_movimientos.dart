@@ -309,11 +309,16 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
   }
 
   Future<void> _eliminarCuenta() async {
+    // Analitica, se inicia la intencion de eliminar cuenta
+    AnaliticaServicio.track('cuenta_eliminacion_iniciada', {});
+
     final contrasena = await _pedirContrasenaEliminarCuenta();
     if (contrasena == null) return;
 
     try {
       await ServicioCuenta.eliminar(contrasena);
+      // Analiticam confirmacion exitosa de eliminacion
+      AnaliticaServicio.track('cuenta_eliminada', {});
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(context, Rutas.login, (ruta) => false);
     } on SesionExpirada {
@@ -331,60 +336,124 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
 
     final resultado = await showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (contexto) => StatefulBuilder(
         builder: (contexto, setStateDialogo) => AlertDialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Eliminar cuenta',
-            style: TextStyle(color: Colores.azulOscuro),
+          title: Row(
+            children: const [
+              Icon(Icons.info_outline, color: Colores.azulOscuro, size: 24),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Eliminar cuenta y datos',
+                  style: TextStyle(
+                    color: Colores.azulOscuro,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Esta acción elimina tu cuenta y todos tus movimientos, metas y presupuestos. No se puede deshacer.',
-                style: TextStyle(color: Colores.grisAzulado, height: 1.4),
+                'Esta acción eliminará de forma permanente tu cuenta, todos tus movimientos, metas y presupuestos.',
+                style: TextStyle(color: Colores.azulOscuro, height: 1.4, fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colores.verdeClaro.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.download_rounded, color: Colores.verdeOscuro, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Te recomendamos descargar una copia de tus datos antes de continuar.',
+                        style: TextStyle(color: Colores.verdeOscuro, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
+              const Text(
+                'Para confirmar, escribe tu contraseña:',
+                style: TextStyle(color: Colores.grisAzulado, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: controlador,
                 obscureText: true,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Contraseña',
+                  labelText: 'Contraseña actual',
                   errorText: error,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
             ],
           ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(contexto),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colores.verdeOscuro),
-              ),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-              ),
-              onPressed: () {
-                if (controlador.text.isEmpty) {
-                  setStateDialogo(() => error = 'Escribe tu contraseña');
-                  return;
-                }
-                Navigator.pop(contexto, controlador.text);
-              },
-              child: const Text('Eliminar cuenta'),
+            // el principio de Simetria (Anti Patron #2):
+            // mismo tamaño y la misma altura, sin destacar agresivamente lo peligroso
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colores.azulOscuro,
+                        side: const BorderSide(color: Colores.grisAzulado),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(contexto),
+                      child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colores.azulOscuro,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (controlador.text.isEmpty) {
+                          setStateDialogo(() => error = 'Escribe tu contraseña');
+                          return;
+                        }
+                        Navigator.pop(contexto, controlador.text);
+                      },
+                      child: const Text('Eliminar', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
