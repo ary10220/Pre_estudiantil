@@ -173,6 +173,13 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
     await Navigator.pushNamed(context, Rutas.historial);
   }
 
+  Future<void> _abrirMisDatos() async {
+    final resultado = await Navigator.pushNamed(context, Rutas.misDatos);
+    if (resultado == 'solicitar_eliminar') {
+      unawaited(_eliminarCuenta());
+    }
+  }
+
   // Future<void> _abrirAnalitica() async {
   //   await Navigator.pushNamed(context, Rutas.analitica);
   // }
@@ -449,14 +456,37 @@ class _PantallaMovimientosState extends State<PantallaMovimientos> {
             tooltip: 'Cuenta',
             icon: const Icon(Icons.more_vert, color: Colores.verdeOscuro),
             onSelected: (valor) {
-              if (valor == 'eliminar') unawaited(_eliminarCuenta());
+              if (valor == 'datos') {
+                unawaited(_abrirMisDatos());
+              } else if (valor == 'eliminar') {
+                unawaited(_eliminarCuenta());
+              }
             },
             itemBuilder: (contexto) => const [
               PopupMenuItem(
+                value: 'datos',
+                child: Row(
+                  children: [
+                    Icon(Icons.folder_shared_outlined, size: 20, color: Colores.azulOscuro),
+                    SizedBox(width: 10),
+                    Text(
+                      'Mis datos',
+                      style: TextStyle(color: Colores.azulOscuro, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
                 value: 'eliminar',
-                child: Text(
-                  'Eliminar cuenta',
-                  style: TextStyle(color: Colors.red),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 20, color: Colores.grisAzulado),
+                    SizedBox(width: 10),
+                    Text(
+                      'Eliminar cuenta',
+                      style: TextStyle(color: Colores.azulOscuro),
+                    ),
+                  ],
                 ),
               ),
             ],
